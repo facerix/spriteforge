@@ -1,0 +1,22 @@
+{
+  "name": "Spriteforge",
+  "short_name": "Spriteforge",
+  "start_url": "/",
+  "description": "Web app for working with animated images and sprite sheets",
+  "theme_color": "#c9a227",
+  "background_color": "#3e0101",
+  "orientation": "any",
+  "display": "standalone",
+  "dir": "auto",
+  "lang": "en-US",
+  "icons": [
+    {
+      "src": "icons/icon512_maskable.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    },
+    { "src": "icons/icon512_rounded.png", "type": "image/png", "sizes": "512x512" },
+    { "src": "icons/icon-192x192.png", "type": "image/png", "sizes": "192x192" }
+  ]
+}

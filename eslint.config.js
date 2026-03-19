@@ -84,7 +84,7 @@ module.exports = [
       "prefer-const": "warn",
       "no-var": "warn",
       "no-use-before-define": "off",
-      "eqeqeq": "off",
+      eqeqeq: "off",
       "no-eq-null": "off",
       "no-undef": "warn",
       "no-redeclare": "warn",

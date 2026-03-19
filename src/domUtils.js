@@ -12,7 +12,7 @@ export const h = (tagName, attrs, children) => {
       el[key] = value;
     }
   }
-  children?.forEach(child => el.appendChild(child));
+  children?.forEach((child) => el.appendChild(child));
   return el;
 };
 
@@ -24,15 +24,15 @@ export const h = (tagName, attrs, children) => {
  * @returns string
  */
 export function jsx(strings, ...values) {
-  let out = '';
+  let out = "";
   strings.forEach((string, i) => {
     const value = values[i];
 
     if (Array.isArray(value)) {
-      out += string + value.join('');
-    } else if (typeof value === 'string') {
+      out += string + value.join("");
+    } else if (typeof value === "string") {
       out += string + value;
-    } else if (typeof value === 'number') {
+    } else if (typeof value === "number") {
       out += string + String(value);
     } else {
       out += string;
@@ -49,43 +49,43 @@ export function jsx(strings, ...values) {
  */
 export const listify = (arrayOfThings, isOrdered) => {
   return [
-    isOrdered ? '<ol>' : '<ul>',
-    ...arrayOfThings.map(i => `<li>${i}</li>`),
-    isOrdered ? '</ol>' : '</ul>',
-  ].join('\n');
+    isOrdered ? "<ol>" : "<ul>",
+    ...arrayOfThings.map((i) => `<li>${i}</li>`),
+    isOrdered ? "</ol>" : "</ul>",
+  ].join("\n");
 };
 
 export const pluralize = (quantity, thing) => {
   return jsx`
-		${quantity} ${thing}${quantity !== 1 && 's'}
+		${quantity} ${thing}${quantity !== 1 && "s"}
 	`;
 };
 
-export const CreateSvg = (body, width, height, classNames = '') => {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('width', width);
-  svg.setAttribute('height', height);
-  svg.setAttribute('viewBox', '0 0 24 24');
-  classNames && svg.setAttribute('class', classNames);
+export const CreateSvg = (body, width, height, classNames = "") => {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("width", width);
+  svg.setAttribute("height", height);
+  svg.setAttribute("viewBox", "0 0 24 24");
+  classNames && svg.setAttribute("class", classNames);
   svg.innerHTML = body;
   return svg;
 };
 
-export const htmlToMarkdown = html => {
-  let out = '';
-  html.childNodes.forEach(nd => {
+export const htmlToMarkdown = (html) => {
+  let out = "";
+  html.childNodes.forEach((nd) => {
     if (nd.nodeType === Node.ELEMENT_NODE) {
       switch (nd.tagName) {
-        case 'P':
+        case "P":
           out += `\n${htmlToMarkdown(nd)}\n`;
           break;
-        case 'STRONG':
+        case "STRONG":
           out += `*${nd.textContent}*`;
           break;
-        case 'UL':
+        case "UL":
           out += `\n\n${htmlToMarkdown(nd)}\n`;
           break;
-        case 'LI':
+        case "LI":
           out += `* ${htmlToMarkdown(nd)}\n`;
           break;
       }
@@ -97,12 +97,15 @@ export const htmlToMarkdown = html => {
   return out;
 };
 
-export const queryParams = paramsObject => {
+export const queryParams = (paramsObject) => {
   return (
-    '?' +
+    "?" +
     Object.keys(paramsObject)
-      .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(paramsObject[k])}`)
-      .join('&')
+      .map(
+        (k) =>
+          `${encodeURIComponent(k)}=${encodeURIComponent(paramsObject[k])}`,
+      )
+      .join("&")
   );
 };
 
@@ -113,10 +116,10 @@ export const queryParams = paramsObject => {
 export const isDevelopmentMode = () => {
   try {
     return (
-      location.hostname === 'localhost' ||
-      location.hostname === '127.0.0.1' ||
-      location.hostname.includes('local') ||
-      location.search.includes('dev=true')
+      location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname.includes("local") ||
+      location.search.includes("dev=true")
     );
   } catch (_error) {
     return false;

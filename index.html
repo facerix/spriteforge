@@ -2,15 +2,21 @@
 
 <html lang="en" xml:lang="en" xmlns="http://www.w3.org/1999/xhtml">
   <head>
-    <title>App Name</title>
+    <title>Spriteforge</title>
     <meta charset="utf-8" />
-    <meta name="description" content="A simple web app" />
+    <meta
+      name="description"
+      content="Web app for working with animated images and sprite sheets"
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#ffffff" />
-    <link rel="canonical" href="https://example.facerix.com/" />
-    <meta property="og:title" content="App Name" />
-    <meta property="og:description" content="A simple web app" />
-    <meta property="og:url" content="https://example.facerix.com/" />
+    <link rel="canonical" href="https://spriteforge.facerix.com/" />
+    <meta property="og:title" content="Spriteforge" />
+    <meta
+      property="og:description"
+      content="Web app for working with animated images and sprite sheets"
+    />
+    <meta property="og:url" content="https://spriteforge.facerix.com/" />
     <meta property="og:type" content="website" />
     <meta http-equiv="Content-Language" content="en" />
 
@@ -21,18 +27,220 @@
     <link rel="stylesheet" href="/main.css" type="text/css" charset="utf-8" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="modulepreload" href="/index.js" />
+
+    <style>
+      /* default styles for both editor canvas and preview canvas */
+      canvas {
+        border: 1px solid var(--accent-color);
+        background-color: #fff;
+        display: block;
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+      }
+
+      #canvas-container {
+        margin: 0 16px;
+        flex: 1;
+        
+        canvas {
+          width: 60vw;
+          height: 60vw;
+          cursor: pointer;
+        }
+      }
+
+      #preview {
+        width: 100px;
+        height: 100px;
+      }
+
+      #sidebar {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+
+        padding-left: 8px;
+        border-left: 2px groove var(--accent-color);
+      }
+
+      #controls {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        border-right: 2px groove var(--accent-color);
+        padding-right: 8px;
+
+        button {
+          width: 60px;
+          height: 60px;
+          border: 2px solid var(--accent-color);
+          background-color: #fff;
+          cursor: pointer;
+  
+          &.active {
+            background-color: var(--accent-color);
+            border-color: var(--border-subtle);
+  
+            img {
+              filter: brightness(0) invert(1);
+            }
+          }
+
+          &:not(.active):hover,
+          &:not(.active):focus-visible {
+            background-color: var(--accent-color-muted);
+            border-color: var(--border-subtle);
+            color: #fff;
+    
+            img {
+              filter: brightness(0) invert(1);
+            }
+          }
+        }
+      }
+
+      #menu-bar {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        border-bottom: 2px groove var(--accent-color);
+        padding: 4px 8px;
+
+        button {
+          width: 32px;
+          height: 32px;
+          padding: 0;
+
+          img {
+            width: 90%;
+            height: 90%;
+          }
+        }
+
+        input[type="number"] {
+          width: 40px;
+          height: 32px;
+          padding: 0;
+          border-radius: 0;
+          text-align: center;
+          border: 2px solid var(--accent-color);
+        }
+      }
+
+      #preview-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+
+      #preview-controls {
+        display: flex;
+        flex-direction: row;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      #preview-controls button {
+        width: 32px;
+        height: 32px;
+      }
+
+      #history {
+        width: 100px;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        flex: 1 1 auto;
+        overflow-y: auto;
+      }
+      
+      #history li {
+        padding: 8px;
+        border: 1px solid var(--accent-color);
+        margin: 8px;
+        aspect-ratio: 1/1;
+      }
+    </style>
   </head>
 
   <body class="u-fill-height">
-    <header>
-      <img src="/favicon.png" alt="App logo" />
-      <h1>App Name</h1>
+    <header id="main-head">
+      <img src="/logo.png" alt="App logo" />
+      <h1>Spriteforge</h1>
     </header>
-    <main class="u-center">
-      <h3>Welcome to your new app</h3>
+    <nav id="menu-bar">
+      <label for="frame-number">Frame:</label>
+      <button id="frame-previous">
+        <img src="/images/prev.svg" alt="Previous Frame" />
+      </button>
+      <input type="number" id="frame-number" value="1" />
+      /
+      <span id="frame-total">1</span>
+      <button id="frame-next">
+        <img src="/images/next.svg" alt="Next Frame" />
+      </button>
+      <button id="frame-add">
+        <img src="/images/plus.svg" alt="Add Frame" />
+      </button>
+      <button id="frame-remove">
+        <img src="/images/minus.svg" alt="Remove Frame" />
+      </button>
+      <span>|</span>
+      <button id="frame-copy">
+        <img src="/images/copy.svg" alt="Copy Frame" />
+      </button>
+      <span>|</span>
+      <button id="frame-paste">
+        <img src="/images/paste.svg" alt="Paste Frame" />
+      </button>
+    </nav>
+    <main>
+      <div id="controls">
+        <button id="pencil" class="tool active">
+          <img src="/images/pencil.svg" alt="Pencil" />
+        </button>
+        <button id="eraser" class="tool">
+          <img src="/images/eraser.svg" alt="Eraser" />
+        </button>
+        <!-- <button id="fill">Fill</button>
+        <button id="line">Line</button>
+        <button id="rectangle">Rectangle</button>
+        <button id="circle">Circle</button>
+        <button id="ellipse">Ellipse</button>
+        <label for="color-picker">Color</label> -->
+        <input type="color" id="color-picker" value="#000000" />
+      </div>
+      <div id="canvas-container">
+        <canvas id="canvas"></canvas>
+      </div>
+
+      <aside id="sidebar">
+        <div id="preview-container">
+          <h3>Preview</h3>
+          <canvas id="preview"></canvas>
+          <div id="preview-controls">
+            <button id="preview-play">
+              <img src="/images/play.svg" alt="Play" />
+            </button>
+            <button id="preview-pause">
+              <img src="/images/pause.svg" alt="Pause" />
+            </button>
+          </div>
+        </div>
+
+        <h3>History</h3>
+        <ul id="history"></ul>
+      </aside>
     </main>
 
-    <footer id="main-foot">A&nbsp;<a href="/about.html">Facerix</a>&nbsp;creation</footer>
+    <footer id="main-foot">
+      A&nbsp;<a href="/about.html">Facerix</a>&nbsp;creation
+    </footer>
 
     <update-notification></update-notification>
   </body>

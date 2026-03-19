@@ -1,6 +1,6 @@
 // Service Worker for App - Production Version
 // Import shared caching core with cache-busting query parameter
-const VERSION = '1.0.0';
+const VERSION = "1.0.0";
 importScripts(`/sw-core.js?v=${VERSION}`);
 
 const cacheConfig = CacheConfig.create(VERSION);
@@ -17,43 +17,57 @@ console.log(`${LOG_PREFIX} Configuration loaded:`, {
   versionedCache: CACHE_NAMES.name,
   staticCache: CACHE_NAMES.staticName,
   coreResources: coreResources.length,
-  staticAssets: staticAssets.length
+  staticAssets: staticAssets.length,
 });
 
-self.addEventListener('install', event => {
+self.addEventListener("install", (event) => {
   event.waitUntil(
     ServiceWorkerCore.handleInstall(
       CACHE_NAMES,
       coreResources,
       staticAssets,
       LOG_PREFIX,
-      false
-    )
+      false,
+    ),
   );
 });
 
-self.addEventListener('activate', event => {
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    ServiceWorkerCore.handleActivate(CACHE_NAMES, CACHE_PREFIX, LOG_PREFIX)
+    ServiceWorkerCore.handleActivate(CACHE_NAMES, CACHE_PREFIX, LOG_PREFIX),
   );
 });
 
-self.addEventListener('fetch', event => {
+self.addEventListener("fetch", (event) => {
   event.respondWith(
-    ServiceWorkerCore.handleFetch(event.request, CACHE_NAMES, LOG_PREFIX)
-      .catch(error => {
-        console.error(`${LOG_PREFIX} Fetch failed for ${event.request.url}:`, error);
+    ServiceWorkerCore.handleFetch(event.request, CACHE_NAMES, LOG_PREFIX).catch(
+      (error) => {
+        console.error(
+          `${LOG_PREFIX} Fetch failed for ${event.request.url}:`,
+          error,
+        );
         throw error;
-      })
+      },
+    ),
   );
 });
 
-self.addEventListener('message', event => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
     event.waitUntil(
-      ServiceWorkerCore.handleMessage(event, CACHE_NAMES.name, CACHE_VERSION, LOG_PREFIX)
+      ServiceWorkerCore.handleMessage(
+        event,
+        CACHE_NAMES.name,
+        CACHE_VERSION,
+        LOG_PREFIX,
+      ),
     );
   } else {
-    ServiceWorkerCore.handleMessage(event, CACHE_NAMES.name, CACHE_VERSION, LOG_PREFIX);
+    ServiceWorkerCore.handleMessage(
+      event,
+      CACHE_NAMES.name,
+      CACHE_VERSION,
+      LOG_PREFIX,
+    );
   }
 });

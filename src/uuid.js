@@ -10,12 +10,12 @@ const getCurrTimestampAsHex = () => {
   return new Date().getTime().toString(16).slice(0, 8);
 };
 
-const getRandomHexSequence = digits => {
+const getRandomHexSequence = (digits) => {
   const seq = [];
   for (let i = 0; i < digits; i++) {
     seq[i] = ((Math.random() * 16) | 0).toString(16);
   }
-  return seq.join('');
+  return seq.join("");
 };
 
 const getRandomV4Var1Digit = () => {
@@ -29,7 +29,7 @@ export const v4 = () => {
     `4${getRandomHexSequence(3)}`,
     `${getRandomV4Var1Digit()}${getRandomHexSequence(3)}`,
     getRandomHexSequence(12),
-  ].join('-');
+  ].join("-");
 };
 
 /*
@@ -46,5 +46,5 @@ export const v4WithTimestamp = () => {
     `4${getRandomHexSequence(3)}`,
     `${getRandomV4Var1Digit()}${getRandomHexSequence(3)}`,
     getRandomHexSequence(12),
-  ].join('-');
+  ].join("-");
 };

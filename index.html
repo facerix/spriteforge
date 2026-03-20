@@ -29,30 +29,20 @@
     <link rel="modulepreload" href="/index.js" />
 
     <style>
-      /* default styles for both editor canvas and preview canvas */
-      canvas {
+      #canvas-container {
+        flex: 1;
+        padding: 0 16px;
+      }
+
+      #preview {
+        width: 100px;
+        height: 100px;
         border: 1px solid var(--accent-color);
         background-color: #fff;
         display: block;
         user-select: none;
         -webkit-user-select: none;
         -moz-user-select: none;
-      }
-
-      #canvas-container {
-        margin: 0 16px;
-        flex: 1;
-        
-        canvas {
-          width: 60vw;
-          height: 60vw;
-          cursor: pointer;
-        }
-      }
-
-      #preview {
-        width: 100px;
-        height: 100px;
       }
 
       #sidebar {
@@ -78,11 +68,11 @@
           border: 2px solid var(--accent-color);
           background-color: #fff;
           cursor: pointer;
-  
+
           &.active {
             background-color: var(--accent-color);
             border-color: var(--border-subtle);
-  
+
             img {
               filter: brightness(0) invert(1);
             }
@@ -93,7 +83,7 @@
             background-color: var(--accent-color-muted);
             border-color: var(--border-subtle);
             color: #fff;
-    
+
             img {
               filter: brightness(0) invert(1);
             }
@@ -130,6 +120,31 @@
         }
       }
 
+      frame-nav {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+
+        button {
+          width: 32px;
+          height: 32px;
+          padding: 0;
+          border: 2px solid var(--accent-color);
+          background-color: #fff;
+          cursor: pointer;
+        }
+
+        input[type="number"] {
+          width: 40px;
+          height: 32px;
+          padding: 0;
+          border-radius: 0;
+          text-align: center;
+          border: 2px solid var(--accent-color);
+        }
+      }
+
       #preview-container {
         display: flex;
         flex-direction: column;
@@ -149,22 +164,6 @@
         width: 32px;
         height: 32px;
       }
-
-      #history {
-        width: 100px;
-        list-style: none;
-        padding: 0;
-        margin: 0;
-        flex: 1 1 auto;
-        overflow-y: auto;
-      }
-      
-      #history li {
-        padding: 8px;
-        border: 1px solid var(--accent-color);
-        margin: 8px;
-        aspect-ratio: 1/1;
-      }
     </style>
   </head>
 
@@ -174,27 +173,13 @@
       <h1>Spriteforge</h1>
     </header>
     <nav id="menu-bar">
-      <label for="frame-number">Frame:</label>
-      <button id="frame-previous">
-        <img src="/images/prev.svg" alt="Previous Frame" />
-      </button>
-      <input type="number" id="frame-number" value="1" />
-      /
-      <span id="frame-total">1</span>
-      <button id="frame-next">
-        <img src="/images/next.svg" alt="Next Frame" />
-      </button>
-      <button id="frame-add">
-        <img src="/images/plus.svg" alt="Add Frame" />
-      </button>
-      <button id="frame-remove">
-        <img src="/images/minus.svg" alt="Remove Frame" />
+      <button id="btn-new">
+        <img src="/images/new.svg" alt="New Sprite" />
       </button>
       <span>|</span>
       <button id="frame-copy">
         <img src="/images/copy.svg" alt="Copy Frame" />
       </button>
-      <span>|</span>
       <button id="frame-paste">
         <img src="/images/paste.svg" alt="Paste Frame" />
       </button>
@@ -207,6 +192,10 @@
         <button id="eraser" class="tool">
           <img src="/images/eraser.svg" alt="Eraser" />
         </button>
+        <button id="paint-bucket" class="tool">
+          <img src="/images/paint-bucket.svg" alt="Fill" />
+        </button>
+
         <!-- <button id="fill">Fill</button>
         <button id="line">Line</button>
         <button id="rectangle">Rectangle</button>
@@ -216,7 +205,25 @@
         <input type="color" id="color-picker" value="#000000" />
       </div>
       <div id="canvas-container">
-        <canvas id="canvas"></canvas>
+        <frame-nav>
+          <label for="frame-number">Frame:</label>
+          <button id="frame-previous">
+            <img src="/images/prev.svg" alt="Previous Frame" />
+          </button>
+          <input type="number" id="frame-number" value="1" />
+          /
+          <span id="frame-total">1</span>
+          <button id="frame-next">
+            <img src="/images/next.svg" alt="Next Frame" />
+          </button>
+          <button id="frame-add">
+            <img src="/images/plus.svg" alt="Add Frame" />
+          </button>
+          <button id="frame-remove">
+            <img src="/images/minus.svg" alt="Remove Frame" />
+          </button>
+        </frame-nav>
+        <sprite-editor id="sprite-editor"></sprite-editor>
       </div>
 
       <aside id="sidebar">
@@ -234,7 +241,7 @@
         </div>
 
         <h3>History</h3>
-        <ul id="history"></ul>
+        <history-list></history-list>
       </aside>
     </main>
 

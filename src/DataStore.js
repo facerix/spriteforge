@@ -10,7 +10,7 @@ function serializeSprite(sprite) {
     frames: sprite.frames.map((frame) => ({
       ...frame,
       pixels: frame.pixels.map((pixel) =>
-        pixel === null ? null : rgbToHex(pixel),
+        pixel === null ? 0 : rgbToHex(pixel),
       ),
     })),
   };
@@ -23,7 +23,7 @@ function deserializeSprite(sprite) {
     frames: sprite.frames.map((frame) => ({
       ...frame,
       pixels: frame.pixels.map((pixel) =>
-        pixel === null ? null : hexToRgb(pixel),
+        pixel === 0 ? null : hexToRgb(pixel),
       ),
     })),
   };
@@ -181,10 +181,22 @@ class DataStore extends EventTarget {
   }
 
   #saveHistory() {
+    this.#deduplicateHistory();
     window.localStorage.setItem(
       STORAGE_KEY_HISTORY,
       JSON.stringify(this.#spriteHistory.map(serializeSprite)),
     );
+  }
+
+  #deduplicateHistory() {
+    const seen = new Set();
+    this.#spriteHistory = this.#spriteHistory.filter((sprite) => {
+      if (seen.has(sprite.id)) {
+        return false;
+      }
+      seen.add(sprite.id);
+      return true;
+    });
   }
 
   #emitChangeEvent(changeType, affectedRecords) {
@@ -331,18 +343,60 @@ class DataStore extends EventTarget {
     }
   }
 
-  loadFromHistory(index) {
-    if (index >= 0 && index < this.#spriteHistory.length) {
-      const sprite = JSON.parse(JSON.stringify(this.#spriteHistory[index]));
-      sprite.id = v4WithTimestamp();
-      this.#currentSprite = sprite;
-      this.#saveCurrentSprite();
-      this.#emitChangeEvent("update", ["currentSprite"]);
+  loadFromHistory(id) {
+    // Already the active sprite: history[0] and currentSprite share one object
+    // after a prior load. Re-"loading" would push a clone then the same object,
+    // duplicating the top history row.
+    if (this.#currentSprite?.id === id) {
+      return;
     }
+
+    const spriteIndex = this.#spriteHistory.findIndex(
+      (sprite) => sprite.id === id,
+    );
+    if (spriteIndex === -1) {
+      console.warn("[DataStore] Sprite not found in history.", id);
+      return;
+    }
+
+    const sprite = this.#spriteHistory[spriteIndex];
+
+    // Remove the selected sprite from its current position
+    this.#spriteHistory.splice(spriteIndex, 1);
+
+    // Snapshot outgoing work only if it isn't already a history row (same object
+    // ref). After a prior load, currentSprite === history[0]; unshifting a copy
+    // here would leave the original next to the clone at indices 1 and 2.
+    if (
+      this.#currentSprite &&
+      !this.#spriteHistory.includes(this.#currentSprite)
+    ) {
+      const copy = JSON.parse(JSON.stringify(this.#currentSprite));
+      copy.id = v4WithTimestamp();
+      this.#spriteHistory.unshift(copy);
+    }
+
+    // Selected sprite becomes the front of the list (after optional snapshot)
+    this.#spriteHistory.unshift(sprite);
+
+    // Load the selected sprite as current
+    this.#currentSprite = sprite;
+    this.#saveCurrentSprite();
+    this.#saveHistory();
+    this.#emitChangeEvent("load", ["currentSprite", "spriteHistory"]);
   }
 
   deleteFromHistory(index) {
     if (index >= 0 && index < this.#spriteHistory.length) {
+      this.#spriteHistory.splice(index, 1);
+      this.#saveHistory();
+      this.#emitChangeEvent("delete", ["spriteHistory"]);
+    }
+  }
+
+  deleteFromHistoryById(id) {
+    const index = this.#spriteHistory.findIndex((sprite) => sprite.id === id);
+    if (index !== -1) {
       this.#spriteHistory.splice(index, 1);
       this.#saveHistory();
       this.#emitChangeEvent("delete", ["spriteHistory"]);

@@ -29,6 +29,9 @@ const CacheConfig = {
       "/src/ServiceWorkerManager.js",
       "/src/domUtils.js",
       "/components/UpdateNotification.js",
+      "/components/HistoryList.js",
+      "/components/SpriteEditor.js",
+      "/components/SpriteThumbnail.js",
     ];
   },
 

@@ -52,6 +52,9 @@ class SpriteEditor extends HTMLElement {
   #onDpr = null;
   #onMouseUp = null;
   #onBlur = null;
+  #previewPlaying = false;
+  #previewAnimFrameIndex = 0;
+  #previewIntervalId = null;
 
   constructor() {
     super();
@@ -111,7 +114,40 @@ class SpriteEditor extends HTMLElement {
   }
 
   disconnectedCallback() {
+    this.stopPreviewAnimation();
     this.#unbindListeners();
+  }
+
+  /** Cycles the preview canvas through frames at the sprite FPS; main canvas stays on the editing frame. */
+  startPreviewAnimation() {
+    if (this.#previewPlaying) return;
+    const sprite = DataStore.currentSprite;
+    if (!sprite || sprite.frameCount < 1) return;
+    this.#previewPlaying = true;
+    this.#previewAnimFrameIndex = Math.min(
+      this.#frameIndex,
+      sprite.frameCount - 1,
+    );
+    const fps = Math.max(1, sprite.fps || 12);
+    const tick = () => {
+      const s = DataStore.currentSprite;
+      if (!s || !this.#previewPlaying) return;
+      this.#previewAnimFrameIndex =
+        (this.#previewAnimFrameIndex + 1) % s.frameCount;
+      this.#render();
+    };
+    tick();
+    this.#previewIntervalId = window.setInterval(tick, 1000 / fps);
+  }
+
+  stopPreviewAnimation() {
+    if (!this.#previewPlaying) return;
+    this.#previewPlaying = false;
+    if (this.#previewIntervalId !== null) {
+      window.clearInterval(this.#previewIntervalId);
+      this.#previewIntervalId = null;
+    }
+    this.#render();
   }
 
   #bindListeners() {
@@ -124,6 +160,13 @@ class SpriteEditor extends HTMLElement {
         changeType === "init" || affectedRecords?.includes("currentSprite");
       if (spriteTouched) {
         this.#recalculateGrid();
+        if (this.#previewPlaying && DataStore.currentSprite) {
+          const fc = DataStore.currentSprite.frameCount;
+          this.#previewAnimFrameIndex = Math.min(
+            this.#previewAnimFrameIndex,
+            fc - 1,
+          );
+        }
         this.#render();
       }
     };
@@ -377,11 +420,11 @@ class SpriteEditor extends HTMLElement {
       this.#ctx.stroke();
     }
 
-    const frame = sprite.frames[this.#frameIndex];
-    if (!frame) return;
+    const editFrame = sprite.frames[this.#frameIndex];
+    if (!editFrame) return;
 
-    for (let i = 0; i < frame.pixels.length; i++) {
-      const pixel = frame.pixels[i];
+    for (let i = 0; i < editFrame.pixels.length; i++) {
+      const pixel = editFrame.pixels[i];
       if (pixel === null) continue;
       const pixelX = i % sprite.width;
       const pixelY = Math.floor(i / sprite.width);
@@ -396,13 +439,19 @@ class SpriteEditor extends HTMLElement {
 
     if (!this.#previewCanvas || !this.#previewCtx) return;
 
+    const previewFrameIndex = this.#previewPlaying
+      ? this.#previewAnimFrameIndex
+      : this.#frameIndex;
+    const previewFrame = sprite.frames[previewFrameIndex];
+    if (!previewFrame) return;
+
     const previewRect = this.#previewCanvas.getBoundingClientRect();
     this.#previewCtx.clearRect(0, 0, previewRect.width, previewRect.height);
     const previewPixelWidth = previewRect.width / sprite.width;
     const previewPixelHeight = previewRect.height / sprite.height;
 
-    for (let i = 0; i < frame.pixels.length; i++) {
-      const pixel = frame.pixels[i];
+    for (let i = 0; i < previewFrame.pixels.length; i++) {
+      const pixel = previewFrame.pixels[i];
       if (pixel === null) continue;
       const pixelX = i % sprite.width;
       const pixelY = Math.floor(i / sprite.width);

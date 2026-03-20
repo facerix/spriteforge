@@ -97,6 +97,15 @@ whenLoaded.then(async () => {
     updateFrameTotal();
     spriteEditor.frameIndex = currentFrame;
   });
+  const previewPlayButton = document.getElementById("preview-play");
+  const previewPauseButton = document.getElementById("preview-pause");
+  previewPlayButton.addEventListener("click", () => {
+    spriteEditor.startPreviewAnimation();
+  });
+  previewPauseButton.addEventListener("click", () => {
+    spriteEditor.stopPreviewAnimation();
+  });
+
   const frameCopyButton = document.getElementById("frame-copy");
   frameCopyButton.addEventListener("click", () => {
     const clipboardData = { ...DataStore.getFrame(currentFrame) };

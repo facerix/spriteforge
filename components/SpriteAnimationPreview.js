@@ -17,15 +17,26 @@ const CSS = `
   gap: 8px;
 }
 .canvas-wrap {
+  position: relative;
   width: 100%;
-  aspect-ratio: 1;
+  aspect-ratio: 1 / 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
   width: 100%;
   height: 100%;
   border: 1px solid var(--accent-color, #333);
   background-color: #fff;
   display: block;
+  /* Bitmap w/h from JS set intrinsic size; absolute + clip keeps layout stable. */
+  max-width: 100%;
+  max-height: 100%;
   user-select: none;
   -webkit-user-select: none;
   -moz-user-select: none;
@@ -275,12 +286,14 @@ class SpriteAnimationPreview extends HTMLElement {
   #setupCanvasForHighDPI() {
     if (!this.#canvas || !this.#ctx) return;
     const dpr = window.devicePixelRatio || 1;
-    const rect = this.#canvas.getBoundingClientRect();
+    // Use client dimensions, not getBoundingClientRect + style — border-box vs
+    // content-box feedback would otherwise grow the canvas on every resize.
+    const w = this.#canvas.clientWidth;
+    const h = this.#canvas.clientHeight;
+    if (w < 1 || h < 1) return;
 
-    this.#canvas.width = rect.width * dpr;
-    this.#canvas.height = rect.height * dpr;
-    this.#canvas.style.width = rect.width + "px";
-    this.#canvas.style.height = rect.height + "px";
+    this.#canvas.width = w * dpr;
+    this.#canvas.height = h * dpr;
     this.#ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     this.#render();
@@ -296,10 +309,11 @@ class SpriteAnimationPreview extends HTMLElement {
     const previewFrame = sprite.frames[previewFrameIndex];
     if (!previewFrame) return;
 
-    const previewRect = this.#canvas.getBoundingClientRect();
-    this.#ctx.clearRect(0, 0, previewRect.width, previewRect.height);
-    const previewPixelWidth = previewRect.width / sprite.width;
-    const previewPixelHeight = previewRect.height / sprite.height;
+    const cw = this.#canvas.clientWidth;
+    const ch = this.#canvas.clientHeight;
+    this.#ctx.clearRect(0, 0, cw, ch);
+    const previewPixelWidth = cw / sprite.width;
+    const previewPixelHeight = ch / sprite.height;
 
     for (let i = 0; i < previewFrame.pixels.length; i++) {
       const pixel = previewFrame.pixels[i];

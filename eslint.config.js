@@ -51,6 +51,7 @@ module.exports = [
         requestAnimationFrame: "readonly",
         cancelAnimationFrame: "readonly",
         performance: "readonly",
+        ResizeObserver: "readonly",
         // Additional browser APIs
         alert: "readonly",
         Object: "readonly",

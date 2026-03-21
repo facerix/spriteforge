@@ -15,13 +15,20 @@ const TOOLS = {
 
 const CSS = `
 :host {
-  display: block;
+  display: flex;
   flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
 }
 
 canvas.main {
-  width: 60vw;
-  height: 60vw;
+  flex-shrink: 0;
+  max-width: 100%;
+  max-height: 100%;
   cursor: pointer;
   border: 1px solid var(--accent-color, #333);
   background-color: #fff;
@@ -44,9 +51,11 @@ class SpriteEditor extends HTMLElement {
   #frameIndex = 0;
   #color = "#000000";
   #tool = TOOLS.PENCIL;
-  #onResize = null;
-  #onOrientation = null;
-  #onFullscreen = null;
+  /** @type {ResizeObserver | null} */
+  #resizeObserver = null;
+  /** @type {number} */
+  #syncCanvasRaf = 0;
+  #onVisualViewportResize = null;
   #onDpr = null;
   #onMouseUp = null;
   #onBlur = null;
@@ -122,16 +131,15 @@ class SpriteEditor extends HTMLElement {
       this.#shadowBuilt = true;
     }
 
-    this.#setupCanvasForHighDPI();
     this.#bindListeners();
-
-    if (this.#sprite) {
-      this.#recalculateGrid();
-      this.#render();
-    }
+    this.#scheduleSyncCanvasToContainer();
   }
 
   disconnectedCallback() {
+    if (this.#syncCanvasRaf) {
+      cancelAnimationFrame(this.#syncCanvasRaf);
+      this.#syncCanvasRaf = 0;
+    }
     this.#unbindListeners();
   }
 
@@ -139,13 +147,18 @@ class SpriteEditor extends HTMLElement {
     if (this.#listenersBound) return;
     this.#listenersBound = true;
 
-    this.#onResize = () => this.#handleViewportChange();
-    this.#onOrientation = () => this.#handleViewportChange();
-    this.#onFullscreen = () => this.#handleViewportChange();
+    this.#resizeObserver = new ResizeObserver(() =>
+      this.#scheduleSyncCanvasToContainer(),
+    );
+    this.#resizeObserver.observe(this);
+    this.#onVisualViewportResize = () => this.#scheduleSyncCanvasToContainer();
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener(
+        "resize",
+        this.#onVisualViewportResize,
+      );
+    }
     this.#onDpr = () => this.#setupCanvasForHighDPI();
-    window.addEventListener("resize", this.#onResize);
-    window.addEventListener("orientationchange", this.#onOrientation);
-    window.addEventListener("fullscreenchange", this.#onFullscreen);
     window.addEventListener("devicePixelRatioChange", this.#onDpr);
 
     this.#canvas.addEventListener("mousedown", (event) =>
@@ -165,9 +178,15 @@ class SpriteEditor extends HTMLElement {
     if (!this.#listenersBound) return;
     this.#listenersBound = false;
 
-    window.removeEventListener("resize", this.#onResize);
-    window.removeEventListener("orientationchange", this.#onOrientation);
-    window.removeEventListener("fullscreenchange", this.#onFullscreen);
+    this.#resizeObserver?.disconnect();
+    this.#resizeObserver = null;
+    if (window.visualViewport && this.#onVisualViewportResize) {
+      window.visualViewport.removeEventListener(
+        "resize",
+        this.#onVisualViewportResize,
+      );
+    }
+    this.#onVisualViewportResize = null;
     window.removeEventListener("devicePixelRatioChange", this.#onDpr);
     window.removeEventListener("mouseup", this.#onMouseUp);
     window.removeEventListener("blur", this.#onBlur);
@@ -176,16 +195,39 @@ class SpriteEditor extends HTMLElement {
   #setupCanvasForHighDPI() {
     if (!this.#canvas || !this.#ctx) return;
     const dpr = window.devicePixelRatio || 1;
-    const rect = this.#canvas.getBoundingClientRect();
+    // Match backing store to the laid-out content box (not border box) so we
+    // don’t re-apply getBoundingClientRect as inline size and fight borders.
+    const w = this.#canvas.clientWidth;
+    const h = this.#canvas.clientHeight;
+    if (w < 1 || h < 1) return;
 
-    this.#canvas.width = rect.width * dpr;
-    this.#canvas.height = rect.height * dpr;
-    this.#canvas.style.width = rect.width + "px";
-    this.#canvas.style.height = rect.height + "px";
+    this.#canvas.width = w * dpr;
+    this.#canvas.height = h * dpr;
     this.#ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     this.#recalculateGrid();
     this.#render();
+  }
+
+  #scheduleSyncCanvasToContainer() {
+    if (this.#syncCanvasRaf) return;
+    this.#syncCanvasRaf = requestAnimationFrame(() => {
+      this.#syncCanvasRaf = 0;
+      this.#syncCanvasToContainer();
+    });
+  }
+
+  /** Largest square that fits in the host’s content box so the pixel grid scales consistently. */
+  #syncCanvasToContainer() {
+    if (!this.#canvas) return;
+    const w = this.clientWidth;
+    const h = this.clientHeight;
+    const size = Math.min(w, h);
+    if (size < 1) return;
+
+    this.#canvas.style.width = `${size}px`;
+    this.#canvas.style.height = `${size}px`;
+    this.#setupCanvasForHighDPI();
   }
 
   #linePixels(x0, y0, x1, y1) {
@@ -219,8 +261,8 @@ class SpriteEditor extends HTMLElement {
       return null;
     }
     const rect = this.#canvas.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
+    const x = clientX - rect.left - this.#canvas.clientLeft;
+    const y = clientY - rect.top - this.#canvas.clientTop;
     const pixelX = Math.floor(x / this.#cellWidth);
     const pixelY = Math.floor(y / this.#cellHeight);
     if (
@@ -341,39 +383,31 @@ class SpriteEditor extends HTMLElement {
   #recalculateGrid() {
     const sprite = this.#sprite;
     if (!this.#canvas || !sprite) return;
-    const rect = this.#canvas.getBoundingClientRect();
-    this.#cellWidth = rect.width / sprite.width;
-    this.#cellHeight = rect.height / sprite.height;
-  }
-
-  #handleViewportChange() {
-    if (!this.#canvas) return;
-    const width = (window.innerWidth / 100) * 60;
-    const height = (window.innerHeight / 100) * 60;
-    const targetSize = Math.min(width, height);
-    this.#canvas.style.width = targetSize + "px";
-    this.#canvas.style.height = targetSize + "px";
-    this.#setupCanvasForHighDPI();
+    const w = this.#canvas.clientWidth;
+    const h = this.#canvas.clientHeight;
+    this.#cellWidth = w / sprite.width;
+    this.#cellHeight = h / sprite.height;
   }
 
   #render() {
     const sprite = this.#sprite;
     if (!sprite || !this.#ctx) return;
-    const rect = this.#canvas.getBoundingClientRect();
-    this.#ctx.clearRect(0, 0, rect.width, rect.height);
+    const cw = this.#canvas.clientWidth;
+    const ch = this.#canvas.clientHeight;
+    this.#ctx.clearRect(0, 0, cw, ch);
 
     this.#ctx.strokeStyle = "#999999";
     this.#ctx.lineWidth = 1;
     for (let i = 0; i < sprite.width; i++) {
       this.#ctx.beginPath();
       this.#ctx.moveTo(i * this.#cellWidth, 0);
-      this.#ctx.lineTo(i * this.#cellWidth, rect.height);
+      this.#ctx.lineTo(i * this.#cellWidth, ch);
       this.#ctx.stroke();
     }
     for (let j = 0; j < sprite.height; j++) {
       this.#ctx.beginPath();
       this.#ctx.moveTo(0, j * this.#cellHeight);
-      this.#ctx.lineTo(rect.width, j * this.#cellHeight);
+      this.#ctx.lineTo(cw, j * this.#cellHeight);
       this.#ctx.stroke();
     }
 

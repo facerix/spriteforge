@@ -1,5 +1,5 @@
 // Service Worker for App - Development Version
-const VERSION = "0.1.0-dev";
+const VERSION = "0.1.2-dev";
 importScripts(`/sw-core.js?v=${VERSION}`);
 
 const cacheConfig = CacheConfig.create(VERSION);

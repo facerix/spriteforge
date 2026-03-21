@@ -9,7 +9,16 @@ const CSS = `
 :host {
   display: block;
   width: 100px;
-  height: 100px;
+}
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.canvas-wrap {
+  width: 100%;
+  aspect-ratio: 1;
 }
 canvas {
   width: 100%;
@@ -21,6 +30,22 @@ canvas {
   -webkit-user-select: none;
   -moz-user-select: none;
 }
+.controls {
+  margin-bottom: 16px;
+}
+.controls button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 2px solid var(--accent-color);
+  background-color: #fff;
+  cursor: pointer;
+}
+.controls button img {
+  width: 90%;
+  height: 90%;
+  vertical-align: middle;
+}
 `;
 
 class SpriteAnimationPreview extends HTMLElement {
@@ -30,18 +55,32 @@ class SpriteAnimationPreview extends HTMLElement {
   #ctx = null;
   #playing = false;
   #animFrameIndex = 0;
-  #intervalId = null;
+  /** @type {number | null} */
+  #rafId = null;
+  #lastRafTime = 0;
+  #animAccumMs = 0;
   #frameIndex = 0;
   #onResize = null;
   #onOrientation = null;
   #onFullscreen = null;
   #onDpr = null;
+  #onVisibilityChange = null;
+  /** True when playback was stopped because the tab became hidden; used to resume on focus. */
+  #pausedBecauseHidden = false;
+  /** @type {HTMLButtonElement | null} */
+  #playPauseButton = null;
+  /** @type {HTMLImageElement | null} */
+  #playPauseImg = null;
   /** @type {{ width: number; height: number; fps?: number; frameCount: number; frames: { pixels: (number|null)[] }[] } | null} */
   #sprite = null;
 
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
+  }
+
+  get playing() {
+    return this.#playing;
   }
 
   get frameIndex() {
@@ -85,10 +124,32 @@ class SpriteAnimationPreview extends HTMLElement {
     const shadow = this.shadowRoot;
     if (!this.#shadowBuilt) {
       shadow.appendChild(h("style", { textContent: CSS }, null));
+      const wrap = h("div", { className: "wrap" }, null);
+      const canvasWrap = h("div", { className: "canvas-wrap" }, null);
       this.#canvas = h("canvas", {}, null);
-      shadow.appendChild(this.#canvas);
+      canvasWrap.appendChild(this.#canvas);
+      wrap.appendChild(canvasWrap);
+      this.#playPauseImg = h("img", { src: "/images/play.svg", alt: "" }, null);
+      this.#playPauseButton = h(
+        "button",
+        { type: "button", className: "play-pause" },
+        [this.#playPauseImg],
+      );
+      this.#playPauseButton.addEventListener("click", () => {
+        if (this.#playing) {
+          this.stopAnimation();
+        } else {
+          this.startAnimation();
+        }
+      });
+      const controls = h("div", { className: "controls" }, [
+        this.#playPauseButton,
+      ]);
+      wrap.appendChild(controls);
+      shadow.appendChild(wrap);
       this.#ctx = this.#canvas.getContext("2d");
       this.#shadowBuilt = true;
+      this.#syncPlayPauseButton();
     }
 
     this.#setupCanvasForHighDPI();
@@ -108,26 +169,70 @@ class SpriteAnimationPreview extends HTMLElement {
     const sprite = this.#sprite;
     if (!sprite || sprite.frameCount < 1) return;
     this.#playing = true;
-    this.#animFrameIndex = Math.min(this.#frameIndex, sprite.frameCount - 1);
-    const fps = Math.max(1, sprite.fps || 12);
-    const tick = () => {
-      const s = this.#sprite;
-      if (!s || !this.#playing) return;
-      this.#animFrameIndex = (this.#animFrameIndex + 1) % s.frameCount;
-      this.#render();
-    };
-    tick();
-    this.#intervalId = window.setInterval(tick, 1000 / fps);
+    const startIdx = Math.min(this.#frameIndex, sprite.frameCount - 1);
+    this.#animFrameIndex = (startIdx + 1) % sprite.frameCount;
+    this.#render();
+    this.#lastRafTime = performance.now();
+    this.#animAccumMs = 0;
+    this.#rafId = requestAnimationFrame((t) => this.#rafLoop(t));
+    this.#syncPlayPauseButton();
   }
 
-  stopAnimation() {
+  /**
+   * @param {{ visibilityDriven?: boolean }} [options] — internal: set when pausing because the tab is hidden.
+   */
+  stopAnimation(options = {}) {
     if (!this.#playing) return;
     this.#playing = false;
-    if (this.#intervalId !== null) {
-      window.clearInterval(this.#intervalId);
-      this.#intervalId = null;
+    if (this.#rafId !== null) {
+      cancelAnimationFrame(this.#rafId);
+      this.#rafId = null;
+    }
+    if (!options.visibilityDriven) {
+      this.#pausedBecauseHidden = false;
     }
     this.#render();
+    this.#syncPlayPauseButton();
+  }
+
+  /**
+   * @param {DOMHighResTimeStamp} now
+   */
+  #rafLoop(now) {
+    this.#rafId = null;
+    if (!this.#playing) return;
+    const sprite = this.#sprite;
+    if (!sprite || sprite.frameCount < 1) {
+      this.stopAnimation();
+      return;
+    }
+    const fps = Math.max(1, sprite.fps || 12);
+    const frameDurationMs = 1000 / fps;
+    const delta = Math.min(now - this.#lastRafTime, frameDurationMs * 10);
+    this.#lastRafTime = now;
+    this.#animAccumMs += delta;
+    while (this.#animAccumMs >= frameDurationMs) {
+      this.#animAccumMs -= frameDurationMs;
+      this.#animFrameIndex = (this.#animFrameIndex + 1) % sprite.frameCount;
+    }
+    this.#render();
+    if (this.#playing) {
+      this.#rafId = requestAnimationFrame((t) => this.#rafLoop(t));
+    }
+  }
+
+  #syncPlayPauseButton() {
+    if (!this.#playPauseButton || !this.#playPauseImg) return;
+    const playing = this.#playing;
+    this.#playPauseButton.setAttribute(
+      "aria-pressed",
+      playing ? "true" : "false",
+    );
+    this.#playPauseButton.setAttribute(
+      "aria-label",
+      playing ? "Pause preview" : "Play preview",
+    );
+    this.#playPauseImg.src = playing ? "/images/pause.svg" : "/images/play.svg";
   }
 
   #bindListeners() {
@@ -138,10 +243,22 @@ class SpriteAnimationPreview extends HTMLElement {
     this.#onOrientation = () => this.#setupCanvasForHighDPI();
     this.#onFullscreen = () => this.#setupCanvasForHighDPI();
     this.#onDpr = () => this.#setupCanvasForHighDPI();
+    this.#onVisibilityChange = () => {
+      if (document.hidden) {
+        if (this.#playing) {
+          this.#pausedBecauseHidden = true;
+          this.stopAnimation({ visibilityDriven: true });
+        }
+      } else if (this.#pausedBecauseHidden) {
+        this.#pausedBecauseHidden = false;
+        this.startAnimation();
+      }
+    };
     window.addEventListener("resize", this.#onResize);
     window.addEventListener("orientationchange", this.#onOrientation);
     window.addEventListener("fullscreenchange", this.#onFullscreen);
     window.addEventListener("devicePixelRatioChange", this.#onDpr);
+    document.addEventListener("visibilitychange", this.#onVisibilityChange);
   }
 
   #unbindListeners() {
@@ -152,6 +269,7 @@ class SpriteAnimationPreview extends HTMLElement {
     window.removeEventListener("orientationchange", this.#onOrientation);
     window.removeEventListener("fullscreenchange", this.#onFullscreen);
     window.removeEventListener("devicePixelRatioChange", this.#onDpr);
+    document.removeEventListener("visibilitychange", this.#onVisibilityChange);
   }
 
   #setupCanvasForHighDPI() {

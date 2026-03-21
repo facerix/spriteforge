@@ -48,6 +48,9 @@ module.exports = [
         setInterval: "readonly",
         clearTimeout: "readonly",
         clearInterval: "readonly",
+        requestAnimationFrame: "readonly",
+        cancelAnimationFrame: "readonly",
+        performance: "readonly",
         // Additional browser APIs
         alert: "readonly",
         Object: "readonly",

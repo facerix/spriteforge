@@ -110,15 +110,6 @@ whenLoaded.then(async () => {
     spriteEditor.frameIndex = currentFrame;
     spritePreview.frameIndex = currentFrame;
   });
-  const previewPlayButton = document.getElementById("preview-play");
-  const previewPauseButton = document.getElementById("preview-pause");
-  previewPlayButton.addEventListener("click", () => {
-    spritePreview.startAnimation();
-  });
-  previewPauseButton.addEventListener("click", () => {
-    spritePreview.stopAnimation();
-  });
-
   const fpsInput = document.getElementById("sprite-fps");
   function syncFpsFromStore() {
     fpsInput.value = String(DataStore.fps);

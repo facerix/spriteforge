@@ -3,6 +3,7 @@ import "/components/UpdateNotification.js";
 import "/components/HistoryList.js";
 import "/components/SpriteAnimationPreview.js";
 import "/components/ConfirmationModal.js";
+import "/components/GrowlToast.js";
 import { SpriteEditorTools as TOOLS } from "/components/SpriteEditor.js";
 import DataStore from "/src/DataStore.js";
 
@@ -56,9 +57,7 @@ whenLoaded.then(async () => {
         },
         { once: true },
       );
-      confirmationModal.showModal(
-        "Start a new sprite?",
-      );
+      confirmationModal.showModal("Start a new sprite?");
       return;
     }
     DataStore.newSprite();
@@ -155,10 +154,11 @@ whenLoaded.then(async () => {
   });
 
   const frameCopyButton = document.getElementById("frame-copy");
+  const growlToast = document.querySelector("growl-toast");
   frameCopyButton.addEventListener("click", () => {
     const clipboardData = { ...DataStore.getFrame(currentFrame) };
     navigator.clipboard.writeText(JSON.stringify(clipboardData));
-    alert("Frame copied to clipboard");
+    growlToast?.show("Frame copied to clipboard");
   });
   const framePasteButton = document.getElementById("frame-paste");
   framePasteButton.addEventListener("click", async () => {

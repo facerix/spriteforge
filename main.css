@@ -41,6 +41,20 @@
   }
 }
 
+/* dialogs */
+growl-toast {
+  --growl-bg: #3e0101;
+  --growl-text: #fafafa;
+}
+
+confirmation-modal {
+  --confirmation-primary: var(--accent-color);
+  --confirmation-border: var(--border-subtle);
+  --confirmation-focus: var(--accent-color-muted);
+  --confirmation-bg: var(--bg-primary);
+  --confirmation-header-bg: var(--bg-secondary);
+}
+
 html {
   box-sizing: border-box;
 }

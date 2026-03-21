@@ -31,6 +31,7 @@ const CacheConfig = {
       "/components/UpdateNotification.js",
       "/components/HistoryList.js",
       "/components/SpriteEditor.js",
+      "/components/SpriteAnimationPreview.js",
       "/components/SpriteThumbnail.js",
     ];
   },

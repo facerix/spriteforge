@@ -1,5 +1,5 @@
 /**
- * Main pixel editor: grid canvas, drawing tools, preview sync, viewport sizing.
+ * Main pixel editor: grid canvas, drawing tools, viewport sizing.
  *
  * Data flow: parent sets `sprite`, `onSetPixel`, and `onSetFrame` (see getters/setters below).
  */
@@ -37,8 +37,6 @@ class SpriteEditor extends HTMLElement {
   #listenersBound = false;
   #canvas = null;
   #ctx = null;
-  #previewCanvas = null;
-  #previewCtx = null;
   #cellWidth = 0;
   #cellHeight = 0;
   #isDrawing = false;
@@ -52,9 +50,6 @@ class SpriteEditor extends HTMLElement {
   #onDpr = null;
   #onMouseUp = null;
   #onBlur = null;
-  #previewPlaying = false;
-  #previewAnimFrameIndex = 0;
-  #previewIntervalId = null;
   /** @type {{ width: number; height: number; fps?: number; frameCount: number; frames: { pixels: (number|null)[] }[] } | null} */
   #sprite = null;
 
@@ -99,12 +94,6 @@ class SpriteEditor extends HTMLElement {
 
   set sprite(value) {
     this.#sprite = value ?? null;
-    if (this.#previewPlaying && this.#sprite && this.#sprite.frameCount >= 1) {
-      this.#previewAnimFrameIndex = Math.min(
-        this.#previewAnimFrameIndex,
-        this.#sprite.frameCount - 1,
-      );
-    }
     if (this.isConnected && this.#shadowBuilt) {
       this.#recalculateGrid();
       this.#render();
@@ -133,10 +122,6 @@ class SpriteEditor extends HTMLElement {
       this.#shadowBuilt = true;
     }
 
-    const previewId = this.getAttribute("preview-canvas-id") || "preview";
-    this.#previewCanvas = document.getElementById(previewId);
-    this.#previewCtx = this.#previewCanvas?.getContext("2d") ?? null;
-
     this.#setupCanvasForHighDPI();
     this.#bindListeners();
 
@@ -147,40 +132,7 @@ class SpriteEditor extends HTMLElement {
   }
 
   disconnectedCallback() {
-    this.stopPreviewAnimation();
     this.#unbindListeners();
-  }
-
-  /** Cycles the preview canvas through frames at the sprite FPS; main canvas stays on the editing frame. */
-  startPreviewAnimation() {
-    if (this.#previewPlaying) return;
-    const sprite = this.#sprite;
-    if (!sprite || sprite.frameCount < 1) return;
-    this.#previewPlaying = true;
-    this.#previewAnimFrameIndex = Math.min(
-      this.#frameIndex,
-      sprite.frameCount - 1,
-    );
-    const fps = Math.max(1, sprite.fps || 12);
-    const tick = () => {
-      const s = this.#sprite;
-      if (!s || !this.#previewPlaying) return;
-      this.#previewAnimFrameIndex =
-        (this.#previewAnimFrameIndex + 1) % s.frameCount;
-      this.#render();
-    };
-    tick();
-    this.#previewIntervalId = window.setInterval(tick, 1000 / fps);
-  }
-
-  stopPreviewAnimation() {
-    if (!this.#previewPlaying) return;
-    this.#previewPlaying = false;
-    if (this.#previewIntervalId !== null) {
-      window.clearInterval(this.#previewIntervalId);
-      this.#previewIntervalId = null;
-    }
-    this.#render();
   }
 
   #bindListeners() {
@@ -231,15 +183,6 @@ class SpriteEditor extends HTMLElement {
     this.#canvas.style.width = rect.width + "px";
     this.#canvas.style.height = rect.height + "px";
     this.#ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    if (this.#previewCanvas && this.#previewCtx) {
-      const previewRect = this.#previewCanvas.getBoundingClientRect();
-      this.#previewCanvas.width = previewRect.width * dpr;
-      this.#previewCanvas.height = previewRect.height * dpr;
-      this.#previewCanvas.style.width = previewRect.width + "px";
-      this.#previewCanvas.style.height = previewRect.height + "px";
-      this.#previewCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
 
     this.#recalculateGrid();
     this.#render();
@@ -448,33 +391,6 @@ class SpriteEditor extends HTMLElement {
         pixelY * this.#cellHeight,
         this.#cellWidth,
         this.#cellHeight,
-      );
-    }
-
-    if (!this.#previewCanvas || !this.#previewCtx) return;
-
-    const previewFrameIndex = this.#previewPlaying
-      ? this.#previewAnimFrameIndex
-      : this.#frameIndex;
-    const previewFrame = sprite.frames[previewFrameIndex];
-    if (!previewFrame) return;
-
-    const previewRect = this.#previewCanvas.getBoundingClientRect();
-    this.#previewCtx.clearRect(0, 0, previewRect.width, previewRect.height);
-    const previewPixelWidth = previewRect.width / sprite.width;
-    const previewPixelHeight = previewRect.height / sprite.height;
-
-    for (let i = 0; i < previewFrame.pixels.length; i++) {
-      const pixel = previewFrame.pixels[i];
-      if (pixel === null) continue;
-      const pixelX = i % sprite.width;
-      const pixelY = Math.floor(i / sprite.width);
-      this.#previewCtx.fillStyle = rgbToHex(pixel);
-      this.#previewCtx.fillRect(
-        pixelX * previewPixelWidth,
-        pixelY * previewPixelHeight,
-        previewPixelWidth,
-        previewPixelHeight,
       );
     }
   }

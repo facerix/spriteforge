@@ -34,17 +34,6 @@
         padding: 0 16px;
       }
 
-      #preview {
-        width: 100px;
-        height: 100px;
-        border: 1px solid var(--accent-color);
-        background-color: #fff;
-        display: block;
-        user-select: none;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-      }
-
       #sidebar {
         display: flex;
         flex-direction: column;
@@ -229,7 +218,7 @@
       <aside id="sidebar">
         <div id="preview-container">
           <h3>Preview</h3>
-          <canvas id="preview"></canvas>
+          <sprite-animation-preview id="sprite-preview"></sprite-animation-preview>
           <div id="preview-controls">
             <button id="preview-play">
               <img src="/images/play.svg" alt="Play" />

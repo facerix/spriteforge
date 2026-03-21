@@ -1,8 +1,10 @@
 import { serviceWorkerManager } from "./src/ServiceWorkerManager.js";
 import "/components/UpdateNotification.js";
+import "/components/ConfirmationModal.js";
 
 const whenLoaded = Promise.all([
   customElements.whenDefined("update-notification"),
+  customElements.whenDefined("confirmation-modal"),
 ]);
 
 whenLoaded.then(async () => {
@@ -58,24 +60,26 @@ whenLoaded.then(async () => {
   const btnClearCache = document.getElementById("btnClearCache");
   const clearCacheStatus = document.getElementById("clearCacheStatus");
 
-  btnClearCache.addEventListener("click", async () => {
-    if (
-      !window.confirm(
-        "This will clear all cached data and reload the page. Continue?",
-      )
-    ) {
-      return;
-    }
+  const confirmationModal = document.querySelector("confirmation-modal");
+  btnClearCache.addEventListener("click", () => {
+    confirmationModal.addEventListener(
+      "confirm",
+      async () => {
+        btnClearCache.disabled = true;
+        clearCacheStatus.innerText = "Clearing caches...";
 
-    btnClearCache.disabled = true;
-    clearCacheStatus.innerText = "Clearing caches...";
-
-    try {
-      await serviceWorkerManager.clearAllCaches();
-    } catch (error) {
-      console.error("Failed to clear caches:", error);
-      clearCacheStatus.innerText = "Failed to clear caches";
-      btnClearCache.disabled = false;
-    }
+        try {
+          await serviceWorkerManager.clearAllCaches();
+        } catch (error) {
+          console.error("Failed to clear caches:", error);
+          clearCacheStatus.innerText = "Failed to clear caches";
+          btnClearCache.disabled = false;
+        }
+      },
+      { once: true },
+    );
+    confirmationModal.showModal(
+      "This will clear all cached data and reload the page. Continue?",
+    );
   });
 });

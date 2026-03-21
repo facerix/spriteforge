@@ -344,9 +344,11 @@ class DataStore extends EventTarget {
   }
 
   get currentSpriteIsEmpty() {
-    return this.#currentSprite?.frames?.every((frame) =>
-      frame.pixels.every((pixel) => pixel == null),
-    ) ?? true;
+    return (
+      this.#currentSprite?.frames?.every((frame) =>
+        frame.pixels.every((pixel) => pixel == null),
+      ) ?? true
+    );
   }
 
   getFrame(index) {
@@ -445,7 +447,8 @@ class DataStore extends EventTarget {
     // ref). After a prior load, currentSprite === history[0]; unshifting a copy
     // here would leave the original next to the clone at indices 1 and 2.
     if (
-      this.#currentSprite && !this.currentSpriteIsEmpty &&
+      this.#currentSprite &&
+      !this.currentSpriteIsEmpty &&
       !this.#spriteHistory.includes(this.#currentSprite)
     ) {
       const copy = JSON.parse(JSON.stringify(this.#currentSprite));

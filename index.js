@@ -2,6 +2,7 @@ import { serviceWorkerManager } from "/src/ServiceWorkerManager.js";
 import "/components/UpdateNotification.js";
 import "/components/HistoryList.js";
 import "/components/SpriteAnimationPreview.js";
+import "/components/ConfirmationModal.js";
 import { SpriteEditorTools as TOOLS } from "/components/SpriteEditor.js";
 import DataStore from "/src/DataStore.js";
 
@@ -10,6 +11,7 @@ const whenLoaded = Promise.all([
   customElements.whenDefined("history-list"),
   customElements.whenDefined("sprite-animation-preview"),
   customElements.whenDefined("sprite-editor"),
+  customElements.whenDefined("confirmation-modal"),
 ]);
 
 whenLoaded.then(async () => {
@@ -42,13 +44,22 @@ whenLoaded.then(async () => {
   }
 
   // init menu bar
+  const confirmationModal = document.querySelector("confirmation-modal");
   const newButton = document.getElementById("btn-new");
   newButton.addEventListener("click", () => {
     if (!DataStore.currentSpriteIsEmpty) {
-      if (!window.confirm("Save current sprite before creating a new one?")) {
-        return;
-      }
-      DataStore.saveToHistory();
+      confirmationModal.addEventListener(
+        "confirm",
+        () => {
+          DataStore.saveToHistory();
+          DataStore.newSprite();
+        },
+        { once: true },
+      );
+      confirmationModal.showModal(
+        "Start a new sprite?",
+      );
+      return;
     }
     DataStore.newSprite();
   });
@@ -155,9 +166,19 @@ whenLoaded.then(async () => {
       (pixel) => pixel === null,
     );
     if (!currentFrameIsEmpty) {
-      if (!window.confirm("Overwrite current frame with clipboard data?")) {
-        return;
-      }
+      confirmationModal.addEventListener(
+        "confirm",
+        async () => {
+          const clipboardData = await navigator.clipboard.readText();
+          const frameToPaste = JSON.parse(clipboardData);
+          DataStore.setFrame(currentFrame, { ...frameToPaste });
+        },
+        { once: true },
+      );
+      confirmationModal.showModal(
+        "Overwrite current frame with clipboard data?",
+      );
+      return;
     }
     const clipboardData = await navigator.clipboard.readText();
     const frameToPaste = JSON.parse(clipboardData);

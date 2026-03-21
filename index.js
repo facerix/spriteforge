@@ -16,6 +16,12 @@ whenLoaded.then(async () => {
   let currentToolButton = null;
 
   const spriteEditor = document.getElementById("sprite-editor");
+  spriteEditor.onSetPixel = (frameIndex, pixelIndex, pixel) => {
+    DataStore.setPixel(frameIndex, pixelIndex, pixel);
+  };
+  spriteEditor.onSetFrame = (frameIndex, frame) => {
+    DataStore.setFrame(frameIndex, frame);
+  };
 
   // init menu bar
   const newButton = document.getElementById("btn-new");
@@ -158,6 +164,7 @@ whenLoaded.then(async () => {
     switch (evt.detail.changeType) {
       case "init":
         currentSprite = evt.detail.currentSprite;
+        spriteEditor.sprite = currentSprite;
 
         // populate history list
         historyList.items = evt.detail.spriteHistory ?? [];
@@ -172,6 +179,7 @@ whenLoaded.then(async () => {
       case "update":
         if (evt.detail.affectedRecords?.includes("currentSprite")) {
           currentSprite = evt.detail.currentSprite;
+          spriteEditor.sprite = currentSprite;
           const frameCount = currentSprite?.frameCount ?? 1;
           currentFrame = Math.min(Math.max(currentFrame, 0), frameCount - 1);
           frameNumberInput.max = frameCount;
@@ -186,6 +194,7 @@ whenLoaded.then(async () => {
         }
         if (evt.detail.affectedRecords?.includes("currentSprite")) {
           currentSprite = evt.detail.currentSprite;
+          spriteEditor.sprite = currentSprite;
           const frameCount = currentSprite?.frameCount ?? 1;
           currentFrame = Math.min(Math.max(currentFrame, 0), frameCount - 1);
           frameNumberInput.max = frameCount;

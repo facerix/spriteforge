@@ -1,8 +1,9 @@
 /**
  * Main pixel editor: grid canvas, drawing tools, preview sync, viewport sizing.
+ *
+ * Data flow: parent sets `sprite`, `onSetPixel`, and `onSetFrame` (see getters/setters below).
  */
 
-import DataStore from "/src/DataStore.js";
 import { h } from "/src/domUtils.js";
 import { hexToRgb, rgbToHex } from "/src/utils.js";
 
@@ -45,7 +46,6 @@ class SpriteEditor extends HTMLElement {
   #frameIndex = 0;
   #color = "#000000";
   #tool = TOOLS.PENCIL;
-  #onDataStoreChange = null;
   #onResize = null;
   #onOrientation = null;
   #onFullscreen = null;
@@ -55,6 +55,8 @@ class SpriteEditor extends HTMLElement {
   #previewPlaying = false;
   #previewAnimFrameIndex = 0;
   #previewIntervalId = null;
+  /** @type {{ width: number; height: number; fps?: number; frameCount: number; frames: { pixels: (number|null)[] }[] } | null} */
+  #sprite = null;
 
   constructor() {
     super();
@@ -90,6 +92,37 @@ class SpriteEditor extends HTMLElement {
     this.#tool = value;
   }
 
+  /** Sprite under edit; assign whenever upstream data changes (including in-place mutations). */
+  get sprite() {
+    return this.#sprite;
+  }
+
+  set sprite(value) {
+    this.#sprite = value ?? null;
+    if (this.#previewPlaying && this.#sprite && this.#sprite.frameCount >= 1) {
+      this.#previewAnimFrameIndex = Math.min(
+        this.#previewAnimFrameIndex,
+        this.#sprite.frameCount - 1,
+      );
+    }
+    if (this.isConnected && this.#shadowBuilt) {
+      this.#recalculateGrid();
+      this.#render();
+    }
+  }
+
+  /**
+   * Called when a single pixel should change. Signature matches DataStore.setPixel.
+   * @type {(frameIndex: number, pixelIndex: number, pixel: number | null) => void | undefined}
+   */
+  onSetPixel;
+
+  /**
+   * Called when a full frame should be replaced (e.g. flood fill). Signature matches DataStore.setFrame.
+   * @type {(frameIndex: number, frame: { width: number; height: number; pixels: (number|null)[] }) => void | undefined}
+   */
+  onSetFrame;
+
   connectedCallback() {
     const shadow = this.shadowRoot;
     if (!this.#shadowBuilt) {
@@ -107,7 +140,7 @@ class SpriteEditor extends HTMLElement {
     this.#setupCanvasForHighDPI();
     this.#bindListeners();
 
-    if (DataStore.currentSprite) {
+    if (this.#sprite) {
       this.#recalculateGrid();
       this.#render();
     }
@@ -121,7 +154,7 @@ class SpriteEditor extends HTMLElement {
   /** Cycles the preview canvas through frames at the sprite FPS; main canvas stays on the editing frame. */
   startPreviewAnimation() {
     if (this.#previewPlaying) return;
-    const sprite = DataStore.currentSprite;
+    const sprite = this.#sprite;
     if (!sprite || sprite.frameCount < 1) return;
     this.#previewPlaying = true;
     this.#previewAnimFrameIndex = Math.min(
@@ -130,7 +163,7 @@ class SpriteEditor extends HTMLElement {
     );
     const fps = Math.max(1, sprite.fps || 12);
     const tick = () => {
-      const s = DataStore.currentSprite;
+      const s = this.#sprite;
       if (!s || !this.#previewPlaying) return;
       this.#previewAnimFrameIndex =
         (this.#previewAnimFrameIndex + 1) % s.frameCount;
@@ -153,24 +186,6 @@ class SpriteEditor extends HTMLElement {
   #bindListeners() {
     if (this.#listenersBound) return;
     this.#listenersBound = true;
-
-    this.#onDataStoreChange = (evt) => {
-      const { changeType, affectedRecords } = evt.detail;
-      const spriteTouched =
-        changeType === "init" || affectedRecords?.includes("currentSprite");
-      if (spriteTouched) {
-        this.#recalculateGrid();
-        if (this.#previewPlaying && DataStore.currentSprite) {
-          const fc = DataStore.currentSprite.frameCount;
-          this.#previewAnimFrameIndex = Math.min(
-            this.#previewAnimFrameIndex,
-            fc - 1,
-          );
-        }
-        this.#render();
-      }
-    };
-    DataStore.addEventListener("change", this.#onDataStoreChange);
 
     this.#onResize = () => this.#handleViewportChange();
     this.#onOrientation = () => this.#handleViewportChange();
@@ -198,7 +213,6 @@ class SpriteEditor extends HTMLElement {
     if (!this.#listenersBound) return;
     this.#listenersBound = false;
 
-    DataStore.removeEventListener("change", this.#onDataStoreChange);
     window.removeEventListener("resize", this.#onResize);
     window.removeEventListener("orientationchange", this.#onOrientation);
     window.removeEventListener("fullscreenchange", this.#onFullscreen);
@@ -257,7 +271,7 @@ class SpriteEditor extends HTMLElement {
   }
 
   #clientToPixel(clientX, clientY) {
-    const sprite = DataStore.currentSprite;
+    const sprite = this.#sprite;
     if (!sprite || this.#cellWidth <= 0 || this.#cellHeight <= 0) {
       return null;
     }
@@ -278,23 +292,23 @@ class SpriteEditor extends HTMLElement {
   }
 
   #drawPixel(pixelX, pixelY) {
-    const sprite = DataStore.currentSprite;
-    if (!sprite) return;
+    const sprite = this.#sprite;
+    if (!sprite || typeof this.onSetPixel !== "function") return;
     const pixelIndex = pixelX + pixelY * sprite.width;
-    DataStore.setPixel(this.#frameIndex, pixelIndex, hexToRgb(this.#color));
+    this.onSetPixel(this.#frameIndex, pixelIndex, hexToRgb(this.#color));
   }
 
   #erasePixel(pixelX, pixelY) {
-    const sprite = DataStore.currentSprite;
-    if (!sprite) return;
+    const sprite = this.#sprite;
+    if (!sprite || typeof this.onSetPixel !== "function") return;
     const pixelIndex = pixelX + pixelY * sprite.width;
-    DataStore.setPixel(this.#frameIndex, pixelIndex, null);
+    this.onSetPixel(this.#frameIndex, pixelIndex, null);
   }
 
   #floodFill(pixelX, pixelY) {
-    const sprite = DataStore.currentSprite;
-    if (!sprite) return;
-    const frame = DataStore.getFrame(this.#frameIndex);
+    const sprite = this.#sprite;
+    if (!sprite || typeof this.onSetFrame !== "function") return;
+    const frame = sprite.frames?.[this.#frameIndex];
     if (!frame?.pixels) return;
 
     const w = sprite.width;
@@ -315,10 +329,10 @@ class SpriteEditor extends HTMLElement {
       if (x > 0) stack.push([x - 1, y]);
       if (x < w - 1) stack.push([x + 1, y]);
       if (y > 0) stack.push([x, y - 1]);
-      if (y < h - 1) stack.push([x, y + 1]);
+      if (y < sprite.height - 1) stack.push([x, y + 1]);
     }
 
-    DataStore.setFrame(this.#frameIndex, { ...frame, pixels });
+    this.onSetFrame(this.#frameIndex, { ...frame, pixels });
   }
 
   #applyToolAt(pixelX, pixelY) {
@@ -340,7 +354,7 @@ class SpriteEditor extends HTMLElement {
   }
 
   #onCanvasMouseDown(event) {
-    const sprite = DataStore.currentSprite;
+    const sprite = this.#sprite;
     if (event.button !== 0 || !sprite) return;
     const coords = this.#clientToPixel(event.clientX, event.clientY);
     if (!coords) return;
@@ -354,7 +368,7 @@ class SpriteEditor extends HTMLElement {
   }
 
   #onCanvasMouseMove(event) {
-    const sprite = DataStore.currentSprite;
+    const sprite = this.#sprite;
     if (this.#tool === TOOLS.FILL) return;
     if (!this.#isDrawing || !sprite) return;
     if ((event.buttons & 1) === 0) {
@@ -382,7 +396,7 @@ class SpriteEditor extends HTMLElement {
   }
 
   #recalculateGrid() {
-    const sprite = DataStore.currentSprite;
+    const sprite = this.#sprite;
     if (!this.#canvas || !sprite) return;
     const rect = this.#canvas.getBoundingClientRect();
     this.#cellWidth = rect.width / sprite.width;
@@ -400,7 +414,7 @@ class SpriteEditor extends HTMLElement {
   }
 
   #render() {
-    const sprite = DataStore.currentSprite;
+    const sprite = this.#sprite;
     if (!sprite || !this.#ctx) return;
     const rect = this.#canvas.getBoundingClientRect();
     this.#ctx.clearRect(0, 0, rect.width, rect.height);

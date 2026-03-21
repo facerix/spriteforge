@@ -18,8 +18,7 @@ const CSS = `
 }
 .canvas-wrap {
   position: relative;
-  width: 100%;
-  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -82,6 +81,10 @@ class SpriteAnimationPreview extends HTMLElement {
   #playPauseButton = null;
   /** @type {HTMLImageElement | null} */
   #playPauseImg = null;
+  /** @type {HTMLDivElement | null} */
+  #canvasWrap = null;
+  /** Max preview box side (px); sprite is letterboxed inside. */
+  static #PREVIEW_MAX = 100;
   /** @type {{ width: number; height: number; fps?: number; frameCount: number; frames: { pixels: (number|null)[] }[] } | null} */
   #sprite = null;
 
@@ -124,7 +127,8 @@ class SpriteAnimationPreview extends HTMLElement {
       );
     }
     if (this.isConnected && this.#shadowBuilt) {
-      this.#render();
+      this.#updatePreviewBoxSize();
+      this.#setupCanvasForHighDPI();
     }
     if (wasPlaying && this.#sprite && this.#sprite.frameCount >= 1) {
       this.startAnimation();
@@ -136,10 +140,10 @@ class SpriteAnimationPreview extends HTMLElement {
     if (!this.#shadowBuilt) {
       shadow.appendChild(h("style", { textContent: CSS }, null));
       const wrap = h("div", { className: "wrap" }, null);
-      const canvasWrap = h("div", { className: "canvas-wrap" }, null);
+      this.#canvasWrap = h("div", { className: "canvas-wrap" }, null);
       this.#canvas = h("canvas", {}, null);
-      canvasWrap.appendChild(this.#canvas);
-      wrap.appendChild(canvasWrap);
+      this.#canvasWrap.appendChild(this.#canvas);
+      wrap.appendChild(this.#canvasWrap);
       this.#playPauseImg = h("img", { src: "/images/play.svg", alt: "" }, null);
       this.#playPauseButton = h(
         "button",
@@ -163,6 +167,7 @@ class SpriteAnimationPreview extends HTMLElement {
       this.#syncPlayPauseButton();
     }
 
+    this.#updatePreviewBoxSize();
     this.#setupCanvasForHighDPI();
     this.#bindListeners();
     if (this.#sprite) {
@@ -270,6 +275,32 @@ class SpriteAnimationPreview extends HTMLElement {
     window.addEventListener("fullscreenchange", this.#onFullscreen);
     window.addEventListener("devicePixelRatioChange", this.#onDpr);
     document.addEventListener("visibilitychange", this.#onVisibilityChange);
+  }
+
+  #updatePreviewBoxSize() {
+    const wrap = this.#canvasWrap;
+    if (!wrap) return;
+    const max = SpriteAnimationPreview.#PREVIEW_MAX;
+    const sprite = this.#sprite;
+    if (!sprite || sprite.width < 1 || sprite.height < 1) {
+      wrap.style.width = `${max}px`;
+      wrap.style.height = `${max}px`;
+      return;
+    }
+    const sw = sprite.width;
+    const sh = sprite.height;
+    const ar = sw / sh;
+    let bw;
+    let bh;
+    if (ar >= 1) {
+      bw = max;
+      bh = max / ar;
+    } else {
+      bh = max;
+      bw = max * ar;
+    }
+    wrap.style.width = `${bw}px`;
+    wrap.style.height = `${bh}px`;
   }
 
   #unbindListeners() {

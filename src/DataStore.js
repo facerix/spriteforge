@@ -61,6 +61,40 @@ spriteHistory: Sprite[];
 const STORAGE_KEY_CURRENT = "currentSprite";
 const STORAGE_KEY_HISTORY = "spriteHistory";
 
+const SPRITE_DIM_MIN = 1;
+const SPRITE_DIM_MAX = 256;
+
+/**
+ * Copy pixels from one rectangle into another (top-left aligned); new cells default to null.
+ * @param {number} oldW
+ * @param {number} oldH
+ * @param {number} newW
+ * @param {number} newH
+ * @param {(number|null)[]} pixels
+ * @returns {(number|null)[]}
+ */
+function resizePixelGrid(oldW, oldH, newW, newH, pixels) {
+  const next = new Array(newW * newH).fill(null);
+  const copyW = Math.min(oldW, newW);
+  const copyH = Math.min(oldH, newH);
+  for (let y = 0; y < copyH; y++) {
+    for (let x = 0; x < copyW; x++) {
+      const from = x + y * oldW;
+      const to = x + y * newW;
+      next[to] = pixels[from] ?? null;
+    }
+  }
+  return next;
+}
+
+function clampSpriteDimension(n) {
+  const v = Math.round(Number(n));
+  if (!Number.isFinite(v)) {
+    return SPRITE_DIM_MIN;
+  }
+  return Math.min(SPRITE_DIM_MAX, Math.max(SPRITE_DIM_MIN, v));
+}
+
 function createDefaultSprite(
   width = 16,
   height = 16,
@@ -239,24 +273,49 @@ class DataStore extends EventTarget {
     return this.#currentSprite?.width ?? 16;
   }
 
-  set width(value) {
-    if (this.#currentSprite) {
-      this.#currentSprite.width = value;
-      this.#saveCurrentSprite();
-      this.#emitChangeEvent("update", ["currentSprite"]);
-    }
-  }
-
   get height() {
     return this.#currentSprite?.height ?? 16;
   }
 
-  set height(value) {
-    if (this.#currentSprite) {
-      this.#currentSprite.height = value;
-      this.#saveCurrentSprite();
-      this.#emitChangeEvent("update", ["currentSprite"]);
+  /**
+   * Resize the sprite and all frames; pixel data is preserved top-left, new area is transparent.
+   * @param {number} newWidth
+   * @param {number} newHeight
+   */
+  resizeSprite(newWidth, newHeight) {
+    if (!this.#currentSprite) {
+      return;
     }
+    const newW = clampSpriteDimension(newWidth);
+    const newH = clampSpriteDimension(newHeight);
+    const oldW = this.#currentSprite.width;
+    const oldH = this.#currentSprite.height;
+    if (newW === oldW && newH === oldH) {
+      return;
+    }
+
+    for (const frame of this.#currentSprite.frames) {
+      const srcW = frame.width ?? oldW;
+      const srcH = frame.height ?? oldH;
+      const pixels = frame.pixels ?? [];
+      const resized = resizePixelGrid(
+        srcW,
+        srcH,
+        newW,
+        newH,
+        pixels.length === srcW * srcH
+          ? pixels
+          : new Array(srcW * srcH).fill(null),
+      );
+      frame.width = newW;
+      frame.height = newH;
+      frame.pixels = resized;
+    }
+
+    this.#currentSprite.width = newW;
+    this.#currentSprite.height = newH;
+    this.#saveCurrentSprite();
+    this.#emitChangeEvent("update", ["currentSprite"]);
   }
 
   get fps() {

@@ -26,6 +26,21 @@ whenLoaded.then(async () => {
     DataStore.setFrame(frameIndex, frame);
   };
 
+  const spriteWidthInput = document.getElementById("sprite-width");
+  const spriteHeightInput = document.getElementById("sprite-height");
+
+  function syncSpriteDimensionsFromStore() {
+    spriteWidthInput.value = String(DataStore.width);
+    spriteHeightInput.value = String(DataStore.height);
+  }
+
+  function applySpriteDimensionsFromInputs() {
+    const w = Number(spriteWidthInput.value);
+    const h = Number(spriteHeightInput.value);
+    DataStore.resizeSprite(w, h);
+    syncSpriteDimensionsFromStore();
+  }
+
   // init menu bar
   const newButton = document.getElementById("btn-new");
   newButton.addEventListener("click", () => {
@@ -34,6 +49,13 @@ whenLoaded.then(async () => {
     }
     DataStore.saveToHistory();
     DataStore.newSprite();
+  });
+
+  spriteWidthInput.addEventListener("change", () => {
+    applySpriteDimensionsFromInputs();
+  });
+  spriteHeightInput.addEventListener("change", () => {
+    applySpriteDimensionsFromInputs();
   });
 
   // init controls
@@ -181,6 +203,7 @@ whenLoaded.then(async () => {
         historyList.items = evt.detail.spriteHistory ?? [];
         updateFrameTotal();
         syncFpsFromStore();
+        syncSpriteDimensionsFromStore();
         spriteEditor.frameIndex = currentFrame;
         spritePreview.frameIndex = currentFrame;
         break;
@@ -200,6 +223,7 @@ whenLoaded.then(async () => {
           frameNumberInput.value = currentFrame + 1;
           updateFrameTotal();
           syncFpsFromStore();
+          syncSpriteDimensionsFromStore();
           spriteEditor.frameIndex = currentFrame;
           spritePreview.frameIndex = currentFrame;
         }
@@ -218,6 +242,7 @@ whenLoaded.then(async () => {
           frameNumberInput.value = currentFrame + 1;
           updateFrameTotal();
           syncFpsFromStore();
+          syncSpriteDimensionsFromStore();
           spriteEditor.frameIndex = currentFrame;
           spritePreview.frameIndex = currentFrame;
         }

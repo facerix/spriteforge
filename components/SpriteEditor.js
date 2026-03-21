@@ -104,6 +104,7 @@ class SpriteEditor extends HTMLElement {
   set sprite(value) {
     this.#sprite = value ?? null;
     if (this.isConnected && this.#shadowBuilt) {
+      this.#syncCanvasToContainer();
       this.#recalculateGrid();
       this.#render();
     }
@@ -217,16 +218,32 @@ class SpriteEditor extends HTMLElement {
     });
   }
 
-  /** Largest square that fits in the host’s content box so the pixel grid scales consistently. */
+  /** Scale canvas to fit the host while preserving sprite aspect ratio (square pixels). */
   #syncCanvasToContainer() {
     if (!this.#canvas) return;
     const w = this.clientWidth;
     const h = this.clientHeight;
-    const size = Math.min(w, h);
-    if (size < 1) return;
+    const sprite = this.#sprite;
+    if (w < 1 || h < 1) return;
 
-    this.#canvas.style.width = `${size}px`;
-    this.#canvas.style.height = `${size}px`;
+    if (!sprite || sprite.width < 1 || sprite.height < 1) {
+      const size = Math.min(w, h);
+      if (size < 1) return;
+      this.#canvas.style.width = `${size}px`;
+      this.#canvas.style.height = `${size}px`;
+      this.#setupCanvasForHighDPI();
+      return;
+    }
+
+    const sw = sprite.width;
+    const sh = sprite.height;
+    const scale = Math.min(w / sw, h / sh);
+    const displayW = sw * scale;
+    const displayH = sh * scale;
+    if (displayW < 1 || displayH < 1) return;
+
+    this.#canvas.style.width = `${displayW}px`;
+    this.#canvas.style.height = `${displayH}px`;
     this.#setupCanvasForHighDPI();
   }
 

@@ -44,10 +44,12 @@ whenLoaded.then(async () => {
   // init menu bar
   const newButton = document.getElementById("btn-new");
   newButton.addEventListener("click", () => {
-    if (!window.confirm("Create a new sprite?")) {
-      return;
+    if (!DataStore.currentSpriteIsEmpty) {
+      if (!window.confirm("Save current sprite before creating a new one?")) {
+        return;
+      }
+      DataStore.saveToHistory();
     }
-    DataStore.saveToHistory();
     DataStore.newSprite();
   });
 

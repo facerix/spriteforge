@@ -343,6 +343,12 @@ class DataStore extends EventTarget {
     return this.#currentSprite?.frames ?? [];
   }
 
+  get currentSpriteIsEmpty() {
+    return this.#currentSprite?.frames?.every((frame) =>
+      frame.pixels.every((pixel) => pixel == null),
+    ) ?? true;
+  }
+
   getFrame(index) {
     return this.#currentSprite?.frames?.[index] ?? null;
   }
@@ -405,7 +411,7 @@ class DataStore extends EventTarget {
   }
 
   saveToHistory() {
-    if (this.#currentSprite) {
+    if (!this.currentSpriteIsEmpty) {
       const copy = JSON.parse(JSON.stringify(this.#currentSprite));
       copy.id = v4WithTimestamp();
       this.#spriteHistory.unshift(copy);
@@ -439,7 +445,7 @@ class DataStore extends EventTarget {
     // ref). After a prior load, currentSprite === history[0]; unshifting a copy
     // here would leave the original next to the clone at indices 1 and 2.
     if (
-      this.#currentSprite &&
+      this.#currentSprite && !this.currentSpriteIsEmpty &&
       !this.#spriteHistory.includes(this.#currentSprite)
     ) {
       const copy = JSON.parse(JSON.stringify(this.#currentSprite));

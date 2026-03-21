@@ -119,6 +119,15 @@ whenLoaded.then(async () => {
     spritePreview.stopAnimation();
   });
 
+  const fpsInput = document.getElementById("sprite-fps");
+  function syncFpsFromStore() {
+    fpsInput.value = String(DataStore.fps);
+  }
+  fpsInput.addEventListener("change", () => {
+    DataStore.fps = fpsInput.value;
+    syncFpsFromStore();
+  });
+
   const frameCopyButton = document.getElementById("frame-copy");
   frameCopyButton.addEventListener("click", () => {
     const clipboardData = { ...DataStore.getFrame(currentFrame) };
@@ -180,6 +189,7 @@ whenLoaded.then(async () => {
         // populate history list
         historyList.items = evt.detail.spriteHistory ?? [];
         updateFrameTotal();
+        syncFpsFromStore();
         spriteEditor.frameIndex = currentFrame;
         spritePreview.frameIndex = currentFrame;
         break;
@@ -198,6 +208,7 @@ whenLoaded.then(async () => {
           frameNumberInput.max = frameCount;
           frameNumberInput.value = currentFrame + 1;
           updateFrameTotal();
+          syncFpsFromStore();
           spriteEditor.frameIndex = currentFrame;
           spritePreview.frameIndex = currentFrame;
         }
@@ -215,6 +226,7 @@ whenLoaded.then(async () => {
           frameNumberInput.max = frameCount;
           frameNumberInput.value = currentFrame + 1;
           updateFrameTotal();
+          syncFpsFromStore();
           spriteEditor.frameIndex = currentFrame;
           spritePreview.frameIndex = currentFrame;
         }

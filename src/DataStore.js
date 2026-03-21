@@ -112,7 +112,14 @@ class DataStore extends EventTarget {
       if (!sprite.id) {
         sprite.id = v4WithTimestamp();
       }
-      return deserializeSprite(sprite);
+      const loaded = deserializeSprite(sprite);
+      if (
+        loaded &&
+        (typeof loaded.fps !== "number" || !Number.isFinite(loaded.fps))
+      ) {
+        loaded.fps = 12;
+      }
+      return loaded;
     } catch (error) {
       console.warn("[DataStore] Failed to parse sprite JSON.", error);
       return null;
@@ -258,7 +265,12 @@ class DataStore extends EventTarget {
 
   set fps(value) {
     if (this.#currentSprite) {
-      this.#currentSprite.fps = value;
+      const n = Math.round(Number(value));
+      const next = Number.isFinite(n) ? Math.min(120, Math.max(1, n)) : 12;
+      if (this.#currentSprite.fps === next) {
+        return;
+      }
+      this.#currentSprite.fps = next;
       this.#saveCurrentSprite();
       this.#emitChangeEvent("update", ["currentSprite"]);
     }

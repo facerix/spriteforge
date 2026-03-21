@@ -62,8 +62,12 @@ class SpriteAnimationPreview extends HTMLElement {
   }
 
   set sprite(value) {
+    const wasPlaying = this.#playing;
+    if (wasPlaying) {
+      this.stopAnimation();
+    }
     this.#sprite = value ?? null;
-    if (this.#playing && this.#sprite && this.#sprite.frameCount >= 1) {
+    if (this.#sprite && this.#sprite.frameCount >= 1) {
       this.#animFrameIndex = Math.min(
         this.#animFrameIndex,
         this.#sprite.frameCount - 1,
@@ -71,6 +75,9 @@ class SpriteAnimationPreview extends HTMLElement {
     }
     if (this.isConnected && this.#shadowBuilt) {
       this.#render();
+    }
+    if (wasPlaying && this.#sprite && this.#sprite.frameCount >= 1) {
+      this.startAnimation();
     }
   }
 

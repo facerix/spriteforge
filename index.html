@@ -153,6 +153,27 @@
         width: 32px;
         height: 32px;
       }
+
+      #preview-fps {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      #preview-fps label {
+        margin: 0;
+      }
+
+      #preview-fps input[type="number"] {
+        width: 48px;
+        height: 32px;
+        padding: 0;
+        border-radius: 0;
+        text-align: center;
+        border: 2px solid var(--accent-color);
+      }
     </style>
   </head>
 
@@ -218,7 +239,9 @@
       <aside id="sidebar">
         <div id="preview-container">
           <h3>Preview</h3>
-          <sprite-animation-preview id="sprite-preview"></sprite-animation-preview>
+          <sprite-animation-preview
+            id="sprite-preview"
+          ></sprite-animation-preview>
           <div id="preview-controls">
             <button id="preview-play">
               <img src="/images/play.svg" alt="Play" />
@@ -226,6 +249,17 @@
             <button id="preview-pause">
               <img src="/images/pause.svg" alt="Pause" />
             </button>
+          </div>
+          <div id="preview-fps">
+            <label for="sprite-fps">FPS</label>
+            <input
+              type="number"
+              id="sprite-fps"
+              min="1"
+              max="120"
+              step="1"
+              value="12"
+            />
           </div>
         </div>
 

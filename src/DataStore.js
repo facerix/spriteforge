@@ -415,7 +415,9 @@ class DataStore extends EventTarget {
   saveToHistory() {
     if (!this.currentSpriteIsEmpty) {
       const copy = JSON.parse(JSON.stringify(this.#currentSprite));
-      copy.id = v4WithTimestamp();
+      if (!copy.id) {
+        copy.id = v4WithTimestamp();
+      }
       this.#spriteHistory.unshift(copy);
       this.#saveHistory();
       this.#emitChangeEvent("add", ["spriteHistory"]);
@@ -452,7 +454,9 @@ class DataStore extends EventTarget {
       !this.#spriteHistory.includes(this.#currentSprite)
     ) {
       const copy = JSON.parse(JSON.stringify(this.#currentSprite));
-      copy.id = v4WithTimestamp();
+      if (!copy.id) {
+        copy.id = v4WithTimestamp();
+      }
       this.#spriteHistory.unshift(copy);
     }
 

@@ -1,6 +1,6 @@
 /**
  * SpriteThumbnail Web Component
- * Renders a small thumbnail (80px max dimension) of a single sprite frame
+ * Renders a thumbnail of a single sprite frame that auto-sizes to fit its container
  * Uses individual div elements for pixels instead of canvas
  */
 
@@ -32,11 +32,18 @@ class SpriteThumbnail extends HTMLElement {
       this.shadowRoot.innerHTML = `
         <style>
           :host {
-            display: inline-block;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            min-width: 0;
+            min-height: 0;
           }
           .empty {
-            width: 80px;
-            height: 80px;
+            aspect-ratio: 1;
+            max-width: 100%;
+            max-height: 100%;
             background: transparent;
           }
         </style>
@@ -46,10 +53,8 @@ class SpriteThumbnail extends HTMLElement {
     }
 
     const { width, height, pixels } = this.#spriteData;
-    const maxDimension = 80;
-    const pixelSize = Math.floor(maxDimension / Math.max(width, height));
-    const containerWidth = width * pixelSize;
-    const containerHeight = height * pixelSize;
+    const pixelWidthPct = 100 / width;
+    const pixelHeightPct = 100 / height;
 
     let pixelsHtml = "";
     for (let y = 0; y < height; y++) {
@@ -58,9 +63,9 @@ class SpriteThumbnail extends HTMLElement {
         const pixel = pixels[index];
         if (pixel !== null) {
           const color = rgbToHex(pixel);
-          const left = x * pixelSize;
-          const top = y * pixelSize;
-          pixelsHtml += `<span style="left:${left}px;top:${top}px;background:${color}"></span>`;
+          const left = x * pixelWidthPct;
+          const top = y * pixelHeightPct;
+          pixelsHtml += `<span style="left:${left}%;top:${top}%;width:${pixelWidthPct}%;height:${pixelHeightPct}%;background:${color}"></span>`;
         }
       }
     }
@@ -68,19 +73,25 @@ class SpriteThumbnail extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         :host {
-          display: inline-block;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: 100%;
+          min-width: 0;
+          min-height: 0;
         }
         .container {
+          flex: 1;
           position: relative;
-          width: ${containerWidth}px;
-          height: ${containerHeight}px;
+          aspect-ratio: ${width} / ${height};
+          max-width: 100%;
+          max-height: 100%;
           background: transparent;
           overflow: hidden;
         }
         .container span {
           position: absolute;
-          width: ${pixelSize}px;
-          height: ${pixelSize}px;
         }
       </style>
       <div class="container">${pixelsHtml}</div>

@@ -130,7 +130,10 @@ whenLoaded.then(async () => {
   });
   frameNav.addEventListener("frame-add", () => {
     DataStore.addFrame(currentFrame + 1);
-    currentFrame = Math.min(currentFrame + 1, (currentSprite?.frameCount ?? 1) - 1);
+    currentFrame = Math.min(
+      currentFrame + 1,
+      (currentSprite?.frameCount ?? 1) - 1,
+    );
     spriteEditor.frameIndex = currentFrame;
     spritePreview.frameIndex = currentFrame;
     syncFrameNav();

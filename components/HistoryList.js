@@ -24,6 +24,9 @@ const CSS_TEMPLATE = `
       gap: 4px;
 
       sprite-thumbnail {
+        width: 80px;
+        height: 80px;
+        flex-shrink: 0;
         border: 1px dashed var(--accent-color-muted);
         border-radius: 4px;
         cursor: pointer;

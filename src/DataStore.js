@@ -372,7 +372,9 @@ class DataStore extends EventTarget {
       const newFrame = {
         width: this.#currentSprite.width,
         height: this.#currentSprite.height,
-        pixels: new Array(this.#currentSprite.width * this.#currentSprite.height).fill(null),
+        pixels: new Array(
+          this.#currentSprite.width * this.#currentSprite.height,
+        ).fill(null),
       };
       if (index === -1) {
         this.#currentSprite.frames.push(newFrame);

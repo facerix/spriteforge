@@ -54,6 +54,12 @@ const CSS = `
   cursor: pointer;
   border-left: 2px solid #000;
   border-right: 2px solid #000;
+  width: 60px;
+  height: 60px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .filmstrip-cell:hover {
@@ -176,7 +182,11 @@ class FrameNav extends HTMLElement {
     cells.forEach((cell, i) => {
       cell.classList.toggle("selected", i === this.#frameIndex);
       if (i === this.#frameIndex) {
-        cell.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+        cell.scrollIntoView({
+          block: "nearest",
+          inline: "nearest",
+          behavior: "smooth",
+        });
       }
     });
   }
@@ -211,7 +221,7 @@ class FrameNav extends HTMLElement {
 
     this.#filmstripEl = h("div", { className: "filmstrip-inner" }, []);
     const filmstripOuter = h("div", { className: "filmstrip" }, [
-      this.#filmstripEl
+      this.#filmstripEl,
     ]);
     this.#renderFilmstrip();
 

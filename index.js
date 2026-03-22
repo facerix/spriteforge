@@ -99,6 +99,13 @@ whenLoaded.then(async () => {
     paintBucketButton.classList.add("active");
     currentToolButton = paintBucketButton;
   });
+  const marqueeButton = document.getElementById("marquee");
+  marqueeButton.addEventListener("click", () => {
+    currentToolButton.classList.remove("active");
+    spriteEditor.tool = TOOLS.MARQUEE;
+    marqueeButton.classList.add("active");
+    currentToolButton = marqueeButton;
+  });
 
   const frameNav = document.querySelector("frame-nav");
   function syncFrameNav() {

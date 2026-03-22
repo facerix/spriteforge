@@ -11,6 +11,7 @@ const TOOLS = {
   PENCIL: "pencil",
   ERASER: "eraser",
   FILL: "fill",
+  MARQUEE: "marquee",
 };
 
 const CSS = `
@@ -37,6 +38,10 @@ canvas.main {
   -webkit-user-select: none;
   -moz-user-select: none;
 }
+
+canvas.main.tool-marquee {
+  cursor: crosshair;
+}
 `;
 
 class SpriteEditor extends HTMLElement {
@@ -59,8 +64,19 @@ class SpriteEditor extends HTMLElement {
   #onDpr = null;
   #onMouseUp = null;
   #onBlur = null;
+  #onCanvasMouseMoveBound = null;
+  #marchRaf = 0;
   /** @type {{ width: number; height: number; fps?: number; frameCount: number; frames: { pixels: (number|null)[] }[] } | null} */
   #sprite = null;
+  /** @type {{ x: number; y: number; width: number; height: number } | null} */
+  #selection = null;
+  #isSelecting = false;
+  /** @type {{ pixelX: number; pixelY: number } | null} */
+  #selectionStart = null;
+  #isMovingSelection = false;
+  /** @type {{ pixelX: number; pixelY: number } | null} */
+  #moveStart = null;
+  #marchOffset = 0;
 
   constructor() {
     super();
@@ -94,6 +110,13 @@ class SpriteEditor extends HTMLElement {
   set tool(value) {
     if (this.#tool === value) return;
     this.#tool = value;
+    if (this.#canvas) {
+      this.#canvas.classList.toggle("tool-marquee", value === TOOLS.MARQUEE);
+    }
+    if (value !== TOOLS.MARQUEE) {
+      this.#selection = null;
+      this.#render();
+    }
   }
 
   /** Sprite under edit; assign whenever upstream data changes (including in-place mutations). */
@@ -134,6 +157,7 @@ class SpriteEditor extends HTMLElement {
 
     this.#bindListeners();
     this.#scheduleSyncCanvasToContainer();
+    this.#startMarchAnimation();
   }
 
   disconnectedCallback() {
@@ -141,7 +165,30 @@ class SpriteEditor extends HTMLElement {
       cancelAnimationFrame(this.#syncCanvasRaf);
       this.#syncCanvasRaf = 0;
     }
+    if (this.#marchRaf) {
+      cancelAnimationFrame(this.#marchRaf);
+      this.#marchRaf = 0;
+    }
     this.#unbindListeners();
+  }
+
+  #startMarchAnimation() {
+    let lastTick = 0;
+    const tick = (now) => {
+      this.#marchRaf = requestAnimationFrame(tick);
+      if (
+        this.#tool === TOOLS.MARQUEE &&
+        this.#selection &&
+        this.#sprite &&
+        this.#ctx &&
+        now - lastTick > 80
+      ) {
+        lastTick = now;
+        this.#marchOffset = (this.#marchOffset + 1) % 8;
+        this.#render();
+      }
+    };
+    this.#marchRaf = requestAnimationFrame(tick);
   }
 
   #bindListeners() {
@@ -165,9 +212,9 @@ class SpriteEditor extends HTMLElement {
     this.#canvas.addEventListener("mousedown", (event) =>
       this.#onCanvasMouseDown(event),
     );
-    this.#canvas.addEventListener("mousemove", (event) =>
-      this.#onCanvasMouseMove(event),
-    );
+    this.#onCanvasMouseMoveBound = (event) => this.#onCanvasMouseMove(event);
+    this.#canvas.addEventListener("mousemove", this.#onCanvasMouseMoveBound);
+    document.addEventListener("mousemove", this.#onCanvasMouseMoveBound);
 
     this.#onMouseUp = () => this.#endCanvasStroke();
     this.#onBlur = () => this.#endCanvasStroke();
@@ -191,6 +238,9 @@ class SpriteEditor extends HTMLElement {
     window.removeEventListener("devicePixelRatioChange", this.#onDpr);
     window.removeEventListener("mouseup", this.#onMouseUp);
     window.removeEventListener("blur", this.#onBlur);
+    this.#canvas.removeEventListener("mousemove", this.#onCanvasMouseMoveBound);
+    document.removeEventListener("mousemove", this.#onCanvasMouseMoveBound);
+    this.#onCanvasMouseMoveBound = null;
   }
 
   #setupCanvasForHighDPI() {
@@ -293,6 +343,26 @@ class SpriteEditor extends HTMLElement {
     return { pixelX, pixelY };
   }
 
+  /** Like #clientToPixel but clamps to canvas bounds (for marquee drag outside). */
+  #clientToPixelClamped(clientX, clientY) {
+    const sprite = this.#sprite;
+    if (!sprite || this.#cellWidth <= 0 || this.#cellHeight <= 0) {
+      return null;
+    }
+    const rect = this.#canvas.getBoundingClientRect();
+    const x = clientX - rect.left - this.#canvas.clientLeft;
+    const y = clientY - rect.top - this.#canvas.clientTop;
+    const pixelX = Math.max(
+      0,
+      Math.min(sprite.width - 1, Math.floor(x / this.#cellWidth)),
+    );
+    const pixelY = Math.max(
+      0,
+      Math.min(sprite.height - 1, Math.floor(y / this.#cellHeight)),
+    );
+    return { pixelX, pixelY };
+  }
+
   #drawPixel(pixelX, pixelY) {
     const sprite = this.#sprite;
     if (!sprite || typeof this.onSetPixel !== "function") return;
@@ -353,6 +423,104 @@ class SpriteEditor extends HTMLElement {
   #endCanvasStroke() {
     this.#isDrawing = false;
     this.#lastPixel = null;
+    if (this.#tool === TOOLS.MARQUEE) {
+      if (this.#isSelecting && this.#selectionStart) {
+        this.#isSelecting = false;
+        this.#selectionStart = null;
+        this.#render();
+      } else if (
+        this.#isMovingSelection &&
+        this.#moveStart &&
+        this.#selection
+      ) {
+        this.#isMovingSelection = false;
+        this.#moveStart = null;
+        this.#render();
+      }
+    }
+  }
+
+  /** @param {number} x @param {number} y @returns {boolean} */
+  #isPointInSelection(pixelX, pixelY) {
+    const s = this.#selection;
+    if (!s) return false;
+    return (
+      pixelX >= s.x &&
+      pixelX < s.x + s.width &&
+      pixelY >= s.y &&
+      pixelY < s.y + s.height
+    );
+  }
+
+  /**
+   * @param {number} x0
+   * @param {number} y0
+   * @param {number} x1
+   * @param {number} y1
+   */
+  #normalizeSelection(x0, y0, x1, y1) {
+    const sprite = this.#sprite;
+    if (!sprite) return null;
+    const x = Math.max(0, Math.min(x0, x1));
+    const y = Math.max(0, Math.min(y0, y1));
+    const w = Math.min(sprite.width - x, Math.abs(x1 - x0) + 1);
+    const h = Math.min(sprite.height - y, Math.abs(y1 - y0) + 1);
+    if (w <= 0 || h <= 0) return null;
+    return { x, y, width: w, height: h };
+  }
+
+  #moveSelectionTo(destX, destY) {
+    const sprite = this.#sprite;
+    const sel = this.#selection;
+    if (
+      !sprite ||
+      !sel ||
+      typeof this.onSetFrame !== "function" ||
+      sel.width <= 0 ||
+      sel.height <= 0
+    )
+      return;
+
+    const frame = sprite.frames?.[this.#frameIndex];
+    if (!frame?.pixels) return;
+
+    const w = sprite.width;
+    const pixels = frame.pixels.slice();
+
+    const srcPixels = [];
+    for (let sy = sel.y; sy < sel.y + sel.height; sy++) {
+      for (let sx = sel.x; sx < sel.x + sel.width; sx++) {
+        const idx = sx + sy * w;
+        srcPixels.push(pixels[idx]);
+        pixels[idx] = null;
+      }
+    }
+
+    let di = 0;
+    for (let sy = 0; sy < sel.height; sy++) {
+      const dy = destY + sy;
+      for (let sx = 0; sx < sel.width; sx++) {
+        const dx = destX + sx;
+        if (
+          dy >= 0 &&
+          dy < sprite.height &&
+          dx >= 0 &&
+          dx < sprite.width &&
+          di < srcPixels.length
+        ) {
+          pixels[dx + dy * w] = srcPixels[di];
+        }
+        di++;
+      }
+    }
+
+    this.onSetFrame(this.#frameIndex, { ...frame, pixels });
+    this.#selection = {
+      x: destX,
+      y: destY,
+      width: sel.width,
+      height: sel.height,
+    };
   }
 
   #onCanvasMouseDown(event) {
@@ -360,6 +528,29 @@ class SpriteEditor extends HTMLElement {
     if (event.button !== 0 || !sprite) return;
     const coords = this.#clientToPixel(event.clientX, event.clientY);
     if (!coords) return;
+
+    if (this.#tool === TOOLS.MARQUEE) {
+      if (
+        this.#selection &&
+        this.#isPointInSelection(coords.pixelX, coords.pixelY)
+      ) {
+        this.#isMovingSelection = true;
+        this.#moveStart = coords;
+      } else {
+        this.#selection = null;
+        this.#isSelecting = true;
+        this.#selectionStart = coords;
+        this.#selection = this.#normalizeSelection(
+          coords.pixelX,
+          coords.pixelY,
+          coords.pixelX,
+          coords.pixelY,
+        );
+      }
+      this.#render();
+      return;
+    }
+
     if (this.#tool === TOOLS.FILL) {
       this.#floodFill(coords.pixelX, coords.pixelY);
       return;
@@ -371,13 +562,62 @@ class SpriteEditor extends HTMLElement {
 
   #onCanvasMouseMove(event) {
     const sprite = this.#sprite;
+    const coords = this.#clientToPixel(event.clientX, event.clientY);
+
+    if (this.#tool === TOOLS.MARQUEE) {
+      if ((event.buttons & 1) === 0) {
+        this.#endCanvasStroke();
+        return;
+      }
+      if (this.#isSelecting && this.#selectionStart) {
+        const current =
+          coords ?? this.#clientToPixelClamped(event.clientX, event.clientY);
+        if (current) {
+          const norm = this.#normalizeSelection(
+            this.#selectionStart.pixelX,
+            this.#selectionStart.pixelY,
+            current.pixelX,
+            current.pixelY,
+          );
+          if (norm) this.#selection = norm;
+        }
+        this.#render();
+      } else if (
+        this.#isMovingSelection &&
+        this.#moveStart &&
+        this.#selection &&
+        coords
+      ) {
+        const dx = coords.pixelX - this.#moveStart.pixelX;
+        const dy = coords.pixelY - this.#moveStart.pixelY;
+        const newX = Math.max(
+          0,
+          Math.min(
+            sprite.width - this.#selection.width,
+            this.#selection.x + dx,
+          ),
+        );
+        const newY = Math.max(
+          0,
+          Math.min(
+            sprite.height - this.#selection.height,
+            this.#selection.y + dy,
+          ),
+        );
+        if (newX !== this.#selection.x || newY !== this.#selection.y) {
+          this.#moveSelectionTo(newX, newY);
+          this.#moveStart = coords;
+        }
+      }
+      return;
+    }
+
     if (this.#tool === TOOLS.FILL) return;
     if (!this.#isDrawing || !sprite) return;
     if ((event.buttons & 1) === 0) {
       this.#endCanvasStroke();
       return;
     }
-    const coords = this.#clientToPixel(event.clientX, event.clientY);
     if (!coords) {
       this.#lastPixel = null;
       return;
@@ -443,6 +683,28 @@ class SpriteEditor extends HTMLElement {
         this.#cellWidth,
         this.#cellHeight,
       );
+    }
+
+    if (
+      this.#tool === TOOLS.MARQUEE &&
+      this.#selection &&
+      this.#selection.width > 0 &&
+      this.#selection.height > 0
+    ) {
+      const s = this.#selection;
+      const x = s.x * this.#cellWidth;
+      const y = s.y * this.#cellHeight;
+      const w = s.width * this.#cellWidth;
+      const h = s.height * this.#cellHeight;
+      this.#ctx.setLineDash([4, 4]);
+      this.#ctx.lineDashOffset = -this.#marchOffset;
+      this.#ctx.strokeStyle = "#000";
+      this.#ctx.lineWidth = 2;
+      this.#ctx.strokeRect(x, y, w, h);
+      this.#ctx.strokeStyle = "#fff";
+      this.#ctx.lineWidth = 1;
+      this.#ctx.strokeRect(x, y, w, h);
+      this.#ctx.setLineDash([]);
     }
   }
 }

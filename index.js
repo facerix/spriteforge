@@ -4,6 +4,7 @@ import "/components/HistoryList.js";
 import "/components/SpriteAnimationPreview.js";
 import "/components/ConfirmationModal.js";
 import "/components/GrowlToast.js";
+import "/components/FrameNav.js";
 import { SpriteEditorTools as TOOLS } from "/components/SpriteEditor.js";
 import DataStore from "/src/DataStore.js";
 
@@ -12,6 +13,7 @@ const whenLoaded = Promise.all([
   customElements.whenDefined("history-list"),
   customElements.whenDefined("sprite-animation-preview"),
   customElements.whenDefined("sprite-editor"),
+  customElements.whenDefined("frame-nav"),
   customElements.whenDefined("confirmation-modal"),
 ]);
 
@@ -98,51 +100,51 @@ whenLoaded.then(async () => {
     currentToolButton = paintBucketButton;
   });
 
-  const frameNumberInput = document.getElementById("frame-number");
-  frameNumberInput.max = currentSprite?.frameCount ?? 1;
-  frameNumberInput.min = 1;
-  frameNumberInput.value = currentFrame + 1;
-
-  frameNumberInput.addEventListener("change", (event) => {
-    currentFrame = event.target.value - 1;
-    spriteEditor.frameIndex = currentFrame;
-    spritePreview.frameIndex = currentFrame;
-  });
-  const frameTotalSpan = document.getElementById("frame-total");
-  function updateFrameTotal() {
-    frameTotalSpan.textContent = currentSprite?.frameCount ?? 1;
+  const frameNav = document.querySelector("frame-nav");
+  function syncFrameNav() {
+    frameNav.frames = currentSprite?.frames ?? [];
+    frameNav.frameIndex = currentFrame;
+    frameNav.frameTotal = currentSprite?.frameCount ?? 1;
   }
-  const framePreviousButton = document.getElementById("frame-previous");
-  framePreviousButton.addEventListener("click", () => {
+  syncFrameNav();
+  frameNav.addEventListener("frame-select", (e) => {
+    currentFrame = e.detail.index;
+    spriteEditor.frameIndex = currentFrame;
+    spritePreview.frameIndex = currentFrame;
+    syncFrameNav();
+  });
+  frameNav.addEventListener("frame-previous", () => {
     currentFrame = Math.max(currentFrame - 1, 0);
-    frameNumberInput.value = currentFrame + 1;
     spriteEditor.frameIndex = currentFrame;
     spritePreview.frameIndex = currentFrame;
+    syncFrameNav();
   });
-  const frameNextButton = document.getElementById("frame-next");
-  frameNextButton.addEventListener("click", () => {
-    currentFrame = Math.min(currentFrame + 1, currentSprite?.frameCount - 1);
-    frameNumberInput.value = currentFrame + 1;
+  frameNav.addEventListener("frame-next", () => {
+    currentFrame = Math.min(
+      currentFrame + 1,
+      (currentSprite?.frameCount ?? 1) - 1,
+    );
     spriteEditor.frameIndex = currentFrame;
     spritePreview.frameIndex = currentFrame;
+    syncFrameNav();
   });
-  const frameAddButton = document.getElementById("frame-add");
-  frameAddButton.addEventListener("click", () => {
-    DataStore.addFrame();
-    updateFrameTotal();
+  frameNav.addEventListener("frame-add", () => {
+    DataStore.addFrame(currentFrame + 1);
+    currentFrame = Math.min(currentFrame + 1, (currentSprite?.frameCount ?? 1) - 1);
+    spriteEditor.frameIndex = currentFrame;
+    spritePreview.frameIndex = currentFrame;
+    syncFrameNav();
   });
-  const frameRemoveButton = document.getElementById("frame-remove");
-  frameRemoveButton.addEventListener("click", () => {
+  frameNav.addEventListener("frame-remove", () => {
     if (currentSprite?.frameCount <= 1) {
-      alert("You must have at least one frame");
+      growlToast?.show("You must have at least one frame");
       return;
     }
     DataStore.deleteFrame(currentFrame);
     currentFrame = Math.max(currentFrame - 1, 0);
-    frameNumberInput.value = currentFrame + 1;
-    updateFrameTotal();
     spriteEditor.frameIndex = currentFrame;
     spritePreview.frameIndex = currentFrame;
+    syncFrameNav();
   });
   const fpsInput = document.getElementById("sprite-fps");
   function syncFpsFromStore() {
@@ -224,7 +226,7 @@ whenLoaded.then(async () => {
 
         // populate history list
         historyList.items = evt.detail.spriteHistory ?? [];
-        updateFrameTotal();
+        syncFrameNav();
         syncFpsFromStore();
         syncSpriteDimensionsFromStore();
         spriteEditor.frameIndex = currentFrame;
@@ -242,9 +244,7 @@ whenLoaded.then(async () => {
           spritePreview.sprite = currentSprite;
           const frameCount = currentSprite?.frameCount ?? 1;
           currentFrame = Math.min(Math.max(currentFrame, 0), frameCount - 1);
-          frameNumberInput.max = frameCount;
-          frameNumberInput.value = currentFrame + 1;
-          updateFrameTotal();
+          syncFrameNav();
           syncFpsFromStore();
           syncSpriteDimensionsFromStore();
           spriteEditor.frameIndex = currentFrame;
@@ -261,9 +261,7 @@ whenLoaded.then(async () => {
           spritePreview.sprite = currentSprite;
           const frameCount = currentSprite?.frameCount ?? 1;
           currentFrame = Math.min(Math.max(currentFrame, 0), frameCount - 1);
-          frameNumberInput.max = frameCount;
-          frameNumberInput.value = currentFrame + 1;
-          updateFrameTotal();
+          syncFrameNav();
           syncFpsFromStore();
           syncSpriteDimensionsFromStore();
           spriteEditor.frameIndex = currentFrame;

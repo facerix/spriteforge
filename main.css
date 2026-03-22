@@ -46,6 +46,12 @@ growl-toast {
   --growl-bg: #3e0101;
   --growl-text: #fafafa;
 }
+@media (prefers-color-scheme: dark) {
+  growl-toast {
+    --growl-bg: #fafafa;
+    --growl-text: #3e0101;
+  }
+}
 
 confirmation-modal {
   --confirmation-primary: var(--accent-color);

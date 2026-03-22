@@ -367,16 +367,18 @@ class DataStore extends EventTarget {
     }
   }
 
-  addFrame(image = null) {
+  addFrame(index = -1) {
     if (this.#currentSprite) {
-      const newFrame = image ?? {
+      const newFrame = {
         width: this.#currentSprite.width,
         height: this.#currentSprite.height,
-        pixels: new Array(
-          this.#currentSprite.width * this.#currentSprite.height,
-        ).fill(null),
+        pixels: new Array(this.#currentSprite.width * this.#currentSprite.height).fill(null),
       };
-      this.#currentSprite.frames.push(newFrame);
+      if (index === -1) {
+        this.#currentSprite.frames.push(newFrame);
+      } else {
+        this.#currentSprite.frames.splice(index, 0, newFrame);
+      }
       this.#currentSprite.frameCount = this.#currentSprite.frames.length;
       this.#saveCurrentSprite();
       this.#emitChangeEvent("update", ["currentSprite"]);

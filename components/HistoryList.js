@@ -22,6 +22,17 @@ const CSS_TEMPLATE = `
       flex-direction: column;
       align-items: center;
       gap: 4px;
+
+      sprite-thumbnail {
+        border: 1px dashed var(--accent-color-muted);
+        border-radius: 4px;
+        cursor: pointer;
+
+        &:hover {
+          background: var(--accent-color);
+          border-color: var(--border-subtle);
+        }
+      }
     }
 
     .remove-from-history {

@@ -113,36 +113,6 @@
         }
       }
 
-      frame-nav {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        gap: 8px;
-        flex-shrink: 0;
-        justify-content: center;
-        border-bottom: 1px solid;
-        padding-bottom: 4px;
-        margin-bottom: 4px;
-
-        button {
-          width: 32px;
-          height: 32px;
-          padding: 0;
-          border: 2px solid var(--accent-color);
-          background-color: #fff;
-          cursor: pointer;
-        }
-
-        input[type="number"] {
-          width: 40px;
-          height: 32px;
-          padding: 0;
-          border-radius: 0;
-          text-align: center;
-          border: 2px solid var(--accent-color);
-        }
-      }
-
       #preview-container {
         display: flex;
         flex-direction: column;
@@ -233,24 +203,7 @@
         <input type="color" id="color-picker" value="#000000" />
       </div>
       <div id="canvas-container">
-        <frame-nav>
-          <label for="frame-number">Frame:</label>
-          <button id="frame-previous">
-            <img src="/images/prev.svg" alt="Previous Frame" />
-          </button>
-          <input type="number" id="frame-number" value="1" />
-          /
-          <span id="frame-total">1</span>
-          <button id="frame-next">
-            <img src="/images/next.svg" alt="Next Frame" />
-          </button>
-          <button id="frame-add">
-            <img src="/images/plus.svg" alt="Add Frame" />
-          </button>
-          <button id="frame-remove">
-            <img src="/images/minus.svg" alt="Remove Frame" />
-          </button>
-        </frame-nav>
+        <frame-nav></frame-nav>
         <sprite-editor id="sprite-editor"></sprite-editor>
       </div>
 

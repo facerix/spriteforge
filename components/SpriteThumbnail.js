@@ -38,8 +38,6 @@ class SpriteThumbnail extends HTMLElement {
             width: 80px;
             height: 80px;
             background: transparent;
-            border: 1px solid #444;
-            border-radius: 4px;
           }
         </style>
         <div class="empty"></div>
@@ -77,8 +75,6 @@ class SpriteThumbnail extends HTMLElement {
           width: ${containerWidth}px;
           height: ${containerHeight}px;
           background: transparent;
-          border: 1px solid #8b1a1a;
-          border-radius: 4px;
           overflow: hidden;
         }
         .container span {

@@ -66,6 +66,8 @@ module.exports = [
         Set: "readonly",
         Error: "readonly",
         RegExp: "readonly",
+        Blob: "readonly",
+        Uint8Array: "readonly",
       },
     },
     plugins: {
@@ -135,6 +137,7 @@ module.exports = [
   },
   {
     ignores: [
+      "vendor/**",
       "node_modules/**",
       "**/node_modules/**",
       "dist/**",

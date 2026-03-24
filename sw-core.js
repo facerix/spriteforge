@@ -37,6 +37,9 @@ const CacheConfig = {
       "/components/SpriteEditor.js",
       "/components/SpriteThumbnail.js",
       "/components/UpdateNotification.js",
+      "/components/ExportModal.js",
+      "/vendor/gifenc.js",
+      "/vendor/upng-js.js",
     ];
   },
 
@@ -53,6 +56,7 @@ const CacheConfig = {
       "/icons/icon-192x192.png",
       "/images/copy.svg",
       "/images/eraser.svg",
+      "/images/export.svg",
       "/images/minus.svg",
       "/images/new.svg",
       "/images/next.svg",

@@ -61,6 +61,14 @@ confirmation-modal {
   --confirmation-header-bg: var(--bg-secondary);
 }
 
+export-modal {
+  --export-primary: var(--accent-color);
+  --export-border: var(--border-subtle);
+  --export-focus: var(--accent-color-muted);
+  --export-bg: var(--bg-primary);
+  --export-header-bg: var(--bg-secondary);
+}
+
 html {
   box-sizing: border-box;
 }

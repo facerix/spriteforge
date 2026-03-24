@@ -4,6 +4,8 @@
   "description": "Web app for working with animated images and sprite sheets",
   "main": "index.html",
   "scripts": {
+    "vendor": "node scripts/vendor.mjs",
+    "postinstall": "node scripts/vendor.mjs",
     "start": "live-server --no-browser",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -14,6 +16,9 @@
   "author": "Rylee Corradini",
   "license": "GPL-3.0",
   "devDependencies": {
+    "gifenc": "1.0.3",
+    "upng-js": "2.1.0",
+    "esbuild": "^0.24.0",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.0",

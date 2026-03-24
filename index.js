@@ -3,6 +3,7 @@ import "/components/UpdateNotification.js";
 import "/components/HistoryList.js";
 import "/components/SpriteAnimationPreview.js";
 import "/components/ConfirmationModal.js";
+import "/components/ExportModal.js";
 import "/components/GrowlToast.js";
 import "/components/FrameNav.js";
 import { SpriteEditorTools as TOOLS } from "/components/SpriteEditor.js";
@@ -15,6 +16,7 @@ const whenLoaded = Promise.all([
   customElements.whenDefined("sprite-editor"),
   customElements.whenDefined("frame-nav"),
   customElements.whenDefined("confirmation-modal"),
+  customElements.whenDefined("export-modal"),
 ]);
 
 whenLoaded.then(async () => {
@@ -63,6 +65,26 @@ whenLoaded.then(async () => {
       return;
     }
     DataStore.newSprite();
+  });
+  const exportModal = document.querySelector("export-modal");
+  const saveButton = document.getElementById("btn-save");
+  saveButton.addEventListener("click", () => {
+    if (!DataStore.currentSpriteIsEmpty) {
+      exportModal.showModal(DataStore.currentSprite);
+    }
+  });
+  exportModal.addEventListener("export", (evt) => {
+    const { blob, filename } = evt.detail;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    growlToast?.show(`Exported ${filename}`);
+  });
+  exportModal.addEventListener("growl", (evt) => {
+    growlToast?.show(evt.detail?.message ?? "Error");
   });
 
   spriteWidthInput.addEventListener("change", () => {

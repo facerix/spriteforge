@@ -1,6 +1,6 @@
 // Service Worker for App - Production Version
 // Import shared caching core with cache-busting query parameter
-const VERSION = "0.2.0";
+const VERSION = "0.3.0";
 importScripts(`/sw-core.js?v=${VERSION}`);
 
 const cacheConfig = CacheConfig.create(VERSION);

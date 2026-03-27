@@ -7,7 +7,7 @@ Usage:
   bash scripts/deploy-changed.sh [user@host:/remote/webroot] [options]
 
 Options:
-  --source DIR     Local directory to compare/sync (default: _site)
+  --source DIR     Local directory to compare/sync (default: ./)
   --dry-run        Don't actually run rsync + remote deletes (default: run for real)
   --no-delete      Do not remove deleted files from remote
   -h, --help       Show this help
@@ -20,7 +20,7 @@ Examples:
   # Sync changes
   bash scripts/deploy-changed.sh user@host:/var/www/facerix.com
 
-  # Preview what would sync from _site
+  # Preview what would sync from ./
   bash scripts/deploy-changed.sh user@host:/var/www/facerix.com --dry-run
 EOF
 }
@@ -72,7 +72,7 @@ if [[ -z "$REMOTE" ]]; then
   exit 1
 fi
 
-SOURCE_DIR="_site"
+SOURCE_DIR="./"
 DRY_RUN=false
 DO_DELETE=true
 

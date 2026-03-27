@@ -39,11 +39,12 @@ class UpdateNotification extends HTMLElement {
           position: fixed;
           top: 20px;
           right: 20px;
-          background: linear-gradient(135deg, #7a7a7a 0%, #3a3a3a 50%, #5a5a5a 100%);
-          color: white;
+          background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-primary) 100%);
+          border: 1px solid var(--border-subtle);
+          color: var(--accent-color);
           padding: 15px;
           border-radius: 8px;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          box-shadow: 0 4px 12px var(--backdrop-color);
           z-index: 1000;
           max-width: 300px;
           display: none;
@@ -59,9 +60,9 @@ class UpdateNotification extends HTMLElement {
         }
         
         .update-notification button {
-          background: white;
-          color: #5a5a5a;
-          border: none;
+          background: var(--bg-primary);
+          border: 1px solid var(--border-subtle);
+          color: var(--text-primary);
           padding: 8px 16px;
           border-radius: 4px;
           margin: 8px 8px 0 0;
@@ -71,7 +72,8 @@ class UpdateNotification extends HTMLElement {
         }
         
         .update-notification button:hover:not(:disabled) {
-          background: #f0f0f0;
+          background: var(--accent-color);
+          color: var(--bg-primary);
         }
         
         .update-notification button:active:not(:disabled) {
@@ -103,7 +105,7 @@ class UpdateNotification extends HTMLElement {
           display: inline-block;
           width: 16px;
           height: 16px;
-          border: 2px solid rgba(255, 255, 255, 0.3);
+          border: 2px solid var(--backdrop-color);
           border-top-color: white;
           border-radius: 50%;
           animation: spin 0.8s linear infinite;

@@ -28,6 +28,7 @@ const CacheConfig = {
       "/manifest.json",
       "/src/DataStore.js",
       "/src/domUtils.js",
+      "/src/frameTiming.js",
       "/src/ServiceWorkerManager.js",
       "/src/utils.js",
       "/src/uuid.js",

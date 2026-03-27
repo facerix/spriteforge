@@ -121,20 +121,22 @@
         flex-shrink: 0;
       }
 
-      #preview-fps {
+      #canvas-frame-delay {
         display: flex;
         flex-direction: row;
         align-items: center;
+        justify-content: center;
         gap: 8px;
-        margin-bottom: 8px;
+        flex-shrink: 0;
+        margin: 0 0 4px;
       }
 
-      #preview-fps label {
+      #canvas-frame-delay label {
         margin: 0;
       }
 
-      #preview-fps input[type="number"] {
-        width: 48px;
+      #canvas-frame-delay input[type="number"] {
+        width: 64px;
         height: 32px;
         padding: 0;
         border-radius: 0;
@@ -210,6 +212,17 @@
       </div>
       <div id="canvas-container">
         <frame-nav></frame-nav>
+        <div id="canvas-frame-delay">
+          <label for="sprite-frame-delay">Frame delay (ms)</label>
+          <input
+            type="number"
+            id="sprite-frame-delay"
+            min="1"
+            max="3600000"
+            step="1"
+            value="83"
+          />
+        </div>
         <sprite-editor id="sprite-editor"></sprite-editor>
       </div>
 
@@ -219,17 +232,6 @@
           <sprite-animation-preview
             id="sprite-preview"
           ></sprite-animation-preview>
-          <div id="preview-fps">
-            <label for="sprite-fps">FPS</label>
-            <input
-              type="number"
-              id="sprite-fps"
-              min="1"
-              max="120"
-              step="1"
-              value="12"
-            />
-          </div>
         </div>
 
         <h3>History</h3>

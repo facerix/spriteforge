@@ -8,6 +8,7 @@ import "/components/GrowlToast.js";
 import "/components/FrameNav.js";
 import { SpriteEditorTools as TOOLS } from "/components/SpriteEditor.js";
 import DataStore from "/src/DataStore.js";
+import { DEFAULT_FRAME_DELAY_MS } from "/src/frameTiming.js";
 
 const whenLoaded = Promise.all([
   customElements.whenDefined("update-notification"),
@@ -131,22 +132,35 @@ whenLoaded.then(async () => {
 
   const frameNav = document.querySelector("frame-nav");
   function syncFrameNav() {
+    frameNav.dimensions = {
+      width: currentSprite?.width ?? 16,
+      height: currentSprite?.height ?? 16,
+    };
     frameNav.frames = currentSprite?.frames ?? [];
     frameNav.frameIndex = currentFrame;
     frameNav.frameTotal = currentSprite?.frameCount ?? 1;
   }
   syncFrameNav();
+  const frameDelayInput = document.getElementById("sprite-frame-delay");
+  function syncFrameDelayFromStore() {
+    const d = DataStore.getFrame(currentFrame)?.delay;
+    frameDelayInput.value = String(
+      typeof d === "number" && Number.isFinite(d) ? d : DEFAULT_FRAME_DELAY_MS,
+    );
+  }
   frameNav.addEventListener("frame-select", (e) => {
     currentFrame = e.detail.index;
     spriteEditor.frameIndex = currentFrame;
     spritePreview.frameIndex = currentFrame;
     syncFrameNav();
+    syncFrameDelayFromStore();
   });
   frameNav.addEventListener("frame-previous", () => {
     currentFrame = Math.max(currentFrame - 1, 0);
     spriteEditor.frameIndex = currentFrame;
     spritePreview.frameIndex = currentFrame;
     syncFrameNav();
+    syncFrameDelayFromStore();
   });
   frameNav.addEventListener("frame-next", () => {
     currentFrame = Math.min(
@@ -156,6 +170,7 @@ whenLoaded.then(async () => {
     spriteEditor.frameIndex = currentFrame;
     spritePreview.frameIndex = currentFrame;
     syncFrameNav();
+    syncFrameDelayFromStore();
   });
   frameNav.addEventListener("frame-add", () => {
     DataStore.addFrame(currentFrame + 1);
@@ -166,6 +181,7 @@ whenLoaded.then(async () => {
     spriteEditor.frameIndex = currentFrame;
     spritePreview.frameIndex = currentFrame;
     syncFrameNav();
+    syncFrameDelayFromStore();
   });
   frameNav.addEventListener("frame-remove", () => {
     if (currentSprite?.frameCount <= 1) {
@@ -177,14 +193,11 @@ whenLoaded.then(async () => {
     spriteEditor.frameIndex = currentFrame;
     spritePreview.frameIndex = currentFrame;
     syncFrameNav();
+    syncFrameDelayFromStore();
   });
-  const fpsInput = document.getElementById("sprite-fps");
-  function syncFpsFromStore() {
-    fpsInput.value = String(DataStore.fps);
-  }
-  fpsInput.addEventListener("change", () => {
-    DataStore.fps = fpsInput.value;
-    syncFpsFromStore();
+  frameDelayInput.addEventListener("change", () => {
+    DataStore.setFrameDelay(currentFrame, frameDelayInput.value);
+    syncFrameDelayFromStore();
   });
 
   const frameCopyButton = document.getElementById("frame-copy");
@@ -259,7 +272,7 @@ whenLoaded.then(async () => {
         // populate history list
         historyList.items = evt.detail.spriteHistory ?? [];
         syncFrameNav();
-        syncFpsFromStore();
+        syncFrameDelayFromStore();
         syncSpriteDimensionsFromStore();
         spriteEditor.frameIndex = currentFrame;
         spritePreview.frameIndex = currentFrame;
@@ -277,7 +290,7 @@ whenLoaded.then(async () => {
           const frameCount = currentSprite?.frameCount ?? 1;
           currentFrame = Math.min(Math.max(currentFrame, 0), frameCount - 1);
           syncFrameNav();
-          syncFpsFromStore();
+          syncFrameDelayFromStore();
           syncSpriteDimensionsFromStore();
           spriteEditor.frameIndex = currentFrame;
           spritePreview.frameIndex = currentFrame;
@@ -294,7 +307,7 @@ whenLoaded.then(async () => {
           const frameCount = currentSprite?.frameCount ?? 1;
           currentFrame = Math.min(Math.max(currentFrame, 0), frameCount - 1);
           syncFrameNav();
-          syncFpsFromStore();
+          syncFrameDelayFromStore();
           syncSpriteDimensionsFromStore();
           spriteEditor.frameIndex = currentFrame;
           spritePreview.frameIndex = currentFrame;

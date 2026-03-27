@@ -66,7 +66,7 @@ class SpriteEditor extends HTMLElement {
   #onBlur = null;
   #onCanvasMouseMoveBound = null;
   #marchRaf = 0;
-  /** @type {{ width: number; height: number; fps?: number; frameCount: number; frames: { pixels: (number|null)[] }[] } | null} */
+  /** @type {{ width: number; height: number; frameCount: number; frames: { delay?: number; pixels: (number|null)[] }[] } | null} */
   #sprite = null;
   /** @type {{ x: number; y: number; width: number; height: number } | null} */
   #selection = null;
@@ -141,7 +141,7 @@ class SpriteEditor extends HTMLElement {
 
   /**
    * Called when a full frame should be replaced (e.g. flood fill). Signature matches DataStore.setFrame.
-   * @type {(frameIndex: number, frame: { width: number; height: number; pixels: (number|null)[] }) => void | undefined}
+   * @type {(frameIndex: number, frame: { delay?: number; pixels: (number|null)[] }) => void | undefined}
    */
   onSetFrame;
 

@@ -10,6 +10,11 @@
  */
 
 import { h, CreateSvg } from "/src/domUtils.js";
+import {
+  exportDelayMsForApng,
+  exportDelayMsForGif,
+  frameDelayOrDefault,
+} from "/src/frameTiming.js";
 import { rgbToHex } from "/src/utils.js";
 
 const closeIconSvg = CreateSvg(
@@ -270,12 +275,13 @@ const CSS = `
 /**
  * Render a single frame's pixels to a 2D context at the given offset.
  * @param {CanvasRenderingContext2D} ctx
- * @param {{ width: number; height: number; pixels: (number|null)[] }} frame
+ * @param {{ pixels: (number|null)[] }} frame
+ * @param {number} frameWidth - sprite width in pixels (row stride for frame.pixels)
  * @param {number} offsetX
  * @param {number} scale - pixel scale (1 = 1:1)
  */
-function drawFrameToContext(ctx, frame, offsetX, scale = 1) {
-  const w = frame.width;
+function drawFrameToContext(ctx, frame, frameWidth, offsetX, scale = 1) {
+  const w = frameWidth;
   for (let i = 0; i < frame.pixels.length; i++) {
     const pixel = frame.pixels[i];
     if (pixel === null) continue;
@@ -288,7 +294,7 @@ function drawFrameToContext(ctx, frame, offsetX, scale = 1) {
 
 /**
  * Build sprite-sheet dimensions: all frames in a horizontal row.
- * @param {{ width: number; height: number; frames: { width: number; height: number }[] }} sprite
+ * @param {{ width: number; height: number; frames: { pixels: (number|null)[] }[] }} sprite
  * @param {number} scale
  * @param {number} gap
  * @returns {{ sheetWidth: number; sheetHeight: number; frameWidth: number; frameHeight: number }}
@@ -325,7 +331,7 @@ function createSpriteSheetCanvas(sprite, scale = 1) {
 
   let x = 0;
   for (const frame of sprite.frames) {
-    drawFrameToContext(ctx, frame, x, scale);
+    drawFrameToContext(ctx, frame, sprite.width, x, scale);
     x += frameWidth + layoutGap;
   }
   return canvas;
@@ -562,8 +568,6 @@ class ExportModal extends HTMLElement {
       await import("/vendor/gifenc.js");
     const w = sprite.width;
     const h = sprite.height;
-    const fps = Math.max(1, sprite.fps || 12);
-    const delayMs = Math.round(1000 / fps);
     const rgbaFrames = spriteToRgbaFrames(sprite);
 
     const totalLen = rgbaFrames.reduce((s, f) => s + f.length, 0);
@@ -589,8 +593,12 @@ class ExportModal extends HTMLElement {
 
     const gif = GIFEncoder();
     let first = true;
-    for (const rgba of rgbaFrames) {
+    for (let i = 0; i < rgbaFrames.length; i++) {
+      const rgba = rgbaFrames[i];
       const index = applyPalette(rgba, palette, "rgba4444");
+      const delayMs = exportDelayMsForGif(
+        frameDelayOrDefault(sprite.frames[i]),
+      );
       gif.writeFrame(index, w, h, {
         palette,
         delay: delayMs,
@@ -609,19 +617,19 @@ class ExportModal extends HTMLElement {
     const UPNG = await import("/vendor/upng-js.js").then((m) => m.default);
     const w = sprite.width;
     const h = sprite.height;
-    const fps = Math.max(1, sprite.fps || 12);
-    const delayMs = Math.round(1000 / fps);
     const rgbaFrames = spriteToRgbaFrames(sprite);
 
     const bufs = rgbaFrames.map((arr) => arr.buffer);
-    const dels = rgbaFrames.map(() => delayMs);
+    const dels = sprite.frames.map((f) =>
+      exportDelayMsForApng(frameDelayOrDefault(f)),
+    );
 
     const apngBuffer = UPNG.encode(bufs, w, h, 0, dels);
     return new Blob([apngBuffer], { type: "image/png" });
   }
 
   /**
-   * @param {{ width: number; height: number; fps?: number; frames: { width: number; height: number; pixels: (number|null)[] }[] } | null} sprite
+   * @param {{ width: number; height: number; frames: { delay?: number; pixels: (number|null)[] }[] } | null} sprite
    */
   showModal(sprite) {
     this.#sprite = sprite ?? null;

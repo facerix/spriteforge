@@ -139,8 +139,11 @@ class HistoryList extends HTMLElement {
       li.dataset.id = item.id;
 
       const thumbnail = document.createElement("sprite-thumbnail");
+      const { width, height } = item;
       if (item.frames && item.frames.length > 0) {
-        thumbnail.spriteData = item.frames[0];
+        thumbnail.spriteData = item.frames[0]
+          ? { ...item.frames[0], width, height }
+          : { width, height, pixels: [] };
       }
       li.appendChild(thumbnail);
 

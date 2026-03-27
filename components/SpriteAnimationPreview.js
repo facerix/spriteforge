@@ -1,8 +1,9 @@
 /**
- * Sidebar animation preview: high-DPI canvas, static frame when paused, play at sprite FPS.
+ * Sidebar animation preview: high-DPI canvas, static frame when paused, play using per-frame delay (ms).
  */
 
 import { h } from "/src/domUtils.js";
+import { frameDelayOrDefault } from "/src/frameTiming.js";
 import { rgbToHex } from "/src/utils.js";
 
 const CSS = `
@@ -85,7 +86,7 @@ class SpriteAnimationPreview extends HTMLElement {
   #canvasWrap = null;
   /** Max preview box side (px); sprite is letterboxed inside. */
   static #PREVIEW_MAX = 100;
-  /** @type {{ width: number; height: number; fps?: number; frameCount: number; frames: { pixels: (number|null)[] }[] } | null} */
+  /** @type {{ width: number; height: number; frameCount: number; frames: { delay?: number; pixels: (number|null)[] }[] } | null} */
   #sprite = null;
 
   constructor() {
@@ -222,14 +223,21 @@ class SpriteAnimationPreview extends HTMLElement {
       this.stopAnimation();
       return;
     }
-    const fps = Math.max(1, sprite.fps || 12);
-    const frameDurationMs = 1000 / fps;
-    const delta = Math.min(now - this.#lastRafTime, frameDurationMs * 10);
+    let frameDurationMs = frameDelayOrDefault(
+      sprite.frames[this.#animFrameIndex],
+    );
+    const delta = Math.min(
+      now - this.#lastRafTime,
+      Math.max(frameDurationMs, 16) * 10,
+    );
     this.#lastRafTime = now;
     this.#animAccumMs += delta;
     while (this.#animAccumMs >= frameDurationMs) {
       this.#animAccumMs -= frameDurationMs;
       this.#animFrameIndex = (this.#animFrameIndex + 1) % sprite.frameCount;
+      frameDurationMs = frameDelayOrDefault(
+        sprite.frames[this.#animFrameIndex],
+      );
     }
     this.#render();
     if (this.#playing) {

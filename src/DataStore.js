@@ -2,13 +2,19 @@
 
 import { v4WithTimestamp } from "./uuid.js";
 import { rgbToHex, hexToRgb } from "./utils.js";
+import {
+  clampStoredFrameDelayMs,
+  DEFAULT_FRAME_DELAY_MS,
+  migrateSpriteTiming,
+} from "./frameTiming.js";
 
 function serializeSprite(sprite) {
   if (!sprite) return null;
+  const { fps, ...rest } = sprite;
   return {
-    ...sprite,
+    ...rest,
     frames: sprite.frames.map((frame) => ({
-      ...frame,
+      delay: clampStoredFrameDelayMs(frame.delay ?? DEFAULT_FRAME_DELAY_MS),
       pixels: frame.pixels.map((pixel) =>
         pixel === null ? 0 : rgbToHex(pixel),
       ),
@@ -21,8 +27,8 @@ function deserializeSprite(sprite) {
   return {
     ...sprite,
     frames: sprite.frames.map((frame) => ({
-      ...frame,
-      pixels: frame.pixels.map((pixel) =>
+      delay: frame.delay,
+      pixels: (frame.pixels ?? []).map((pixel) =>
         pixel === 0 ? null : hexToRgb(pixel),
       ),
     })),
@@ -35,10 +41,9 @@ number | null
 - number = packed RGB color value (0x000000 to 0xFFFFFF)
 */
 
-/* Image data structure:
+/* SpriteFrame data structure:
 {
-  width: number;
-  height: number;
+  delay: number; // ms; how long this frame is shown in preview/export
   pixels: pixel[]; // array of pixels, width*height in length
 }
 */
@@ -47,9 +52,8 @@ number | null
 {
   width: number;
   height: number;
-  fps: number;
   frameCount: number;
-  frames: image[]; // array of images, frameCount in length
+  frames: SpriteFrame[]; // delay = display duration in ms
 }
 */
 
@@ -95,19 +99,13 @@ function clampSpriteDimension(n) {
   return Math.min(SPRITE_DIM_MAX, Math.max(SPRITE_DIM_MIN, v));
 }
 
-function createDefaultSprite(
-  width = 16,
-  height = 16,
-  fps = 12,
-  frameCount = 1,
-) {
+function createDefaultSprite(width = 16, height = 16, frameCount = 1) {
   const pixels = new Array(width * height).fill(null);
 
   const frames = [];
   for (let i = 0; i < frameCount; i++) {
     frames.push({
-      width,
-      height,
+      delay: DEFAULT_FRAME_DELAY_MS,
       pixels: [...pixels],
     });
   }
@@ -116,7 +114,6 @@ function createDefaultSprite(
     id: v4WithTimestamp(),
     width,
     height,
-    fps,
     frameCount,
     frames,
   };
@@ -147,11 +144,8 @@ class DataStore extends EventTarget {
         sprite.id = v4WithTimestamp();
       }
       const loaded = deserializeSprite(sprite);
-      if (
-        loaded &&
-        (typeof loaded.fps !== "number" || !Number.isFinite(loaded.fps))
-      ) {
-        loaded.fps = 12;
+      if (loaded) {
+        migrateSpriteTiming(loaded);
       }
       return loaded;
     } catch (error) {
@@ -173,7 +167,9 @@ class DataStore extends EventTarget {
         if (!sprite.id) {
           sprite.id = v4WithTimestamp();
         }
-        return deserializeSprite(sprite);
+        const loaded = deserializeSprite(sprite);
+        migrateSpriteTiming(loaded);
+        return loaded;
       });
     } catch (error) {
       console.warn(
@@ -260,6 +256,7 @@ class DataStore extends EventTarget {
     if (!sprite.id) {
       sprite.id = v4WithTimestamp();
     }
+    migrateSpriteTiming(sprite);
     this.#currentSprite = sprite;
     this.#saveCurrentSprite();
     this.#emitChangeEvent("update", ["currentSprite"]);
@@ -295,20 +292,16 @@ class DataStore extends EventTarget {
     }
 
     for (const frame of this.#currentSprite.frames) {
-      const srcW = frame.width ?? oldW;
-      const srcH = frame.height ?? oldH;
       const pixels = frame.pixels ?? [];
       const resized = resizePixelGrid(
-        srcW,
-        srcH,
+        oldW,
+        oldH,
         newW,
         newH,
-        pixels.length === srcW * srcH
+        pixels.length === oldW * oldH
           ? pixels
-          : new Array(srcW * srcH).fill(null),
+          : new Array(oldW * oldH).fill(null),
       );
-      frame.width = newW;
-      frame.height = newH;
       frame.pixels = resized;
     }
 
@@ -316,23 +309,6 @@ class DataStore extends EventTarget {
     this.#currentSprite.height = newH;
     this.#saveCurrentSprite();
     this.#emitChangeEvent("update", ["currentSprite"]);
-  }
-
-  get fps() {
-    return this.#currentSprite?.fps ?? 12;
-  }
-
-  set fps(value) {
-    if (this.#currentSprite) {
-      const n = Math.round(Number(value));
-      const next = Number.isFinite(n) ? Math.min(120, Math.max(1, n)) : 12;
-      if (this.#currentSprite.fps === next) {
-        return;
-      }
-      this.#currentSprite.fps = next;
-      this.#saveCurrentSprite();
-      this.#emitChangeEvent("update", ["currentSprite"]);
-    }
   }
 
   get frameCount() {
@@ -361,17 +337,46 @@ class DataStore extends EventTarget {
       index >= 0 &&
       index < this.#currentSprite.frames.length
     ) {
-      this.#currentSprite.frames[index] = image;
+      const prev = this.#currentSprite.frames[index];
+      const delay = clampStoredFrameDelayMs(
+        image.delay ?? prev?.delay ?? DEFAULT_FRAME_DELAY_MS,
+      );
+      const pixels = Array.isArray(image.pixels) ? image.pixels : prev?.pixels;
+      if (!pixels) {
+        return;
+      }
+      this.#currentSprite.frames[index] = { delay, pixels };
       this.#saveCurrentSprite();
       this.#emitChangeEvent("update", ["currentSprite"]);
     }
   }
 
+  /**
+   * @param {number} index
+   * @param {unknown} valueMs
+   */
+  setFrameDelay(index, valueMs) {
+    const frame = this.#currentSprite?.frames?.[index];
+    if (!frame) {
+      return;
+    }
+    frame.delay = clampStoredFrameDelayMs(valueMs);
+    this.#saveCurrentSprite();
+    this.#emitChangeEvent("update", ["currentSprite"]);
+  }
+
   addFrame(index = -1) {
     if (this.#currentSprite) {
+      const { frames } = this.#currentSprite;
+      const ref =
+        index === -1
+          ? frames[frames.length - 1]
+          : frames[Math.max(0, index - 1)];
+      const delay = clampStoredFrameDelayMs(
+        ref?.delay ?? DEFAULT_FRAME_DELAY_MS,
+      );
       const newFrame = {
-        width: this.#currentSprite.width,
-        height: this.#currentSprite.height,
+        delay,
         pixels: new Array(
           this.#currentSprite.width * this.#currentSprite.height,
         ).fill(null),
@@ -497,8 +502,8 @@ class DataStore extends EventTarget {
     this.#emitChangeEvent("delete", ["spriteHistory"]);
   }
 
-  newSprite(width = 16, height = 16, fps = 12, frameCount = 1) {
-    this.#currentSprite = createDefaultSprite(width, height, fps, frameCount);
+  newSprite(width = 16, height = 16, frameCount = 1) {
+    this.#currentSprite = createDefaultSprite(width, height, frameCount);
     this.#saveCurrentSprite();
     this.#emitChangeEvent("update", ["currentSprite"]);
   }

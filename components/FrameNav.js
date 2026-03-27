@@ -8,6 +8,7 @@
  *
  * Usage:
  *   <frame-nav></frame-nav>
+ *   frameNav.dimensions = { width: 16, height: 16 };
  *   frameNav.frames = [...];
  *   frameNav.frameIndex = 0;
  *   frameNav.frameTotal = 4;
@@ -120,6 +121,7 @@ class FrameNav extends HTMLElement {
   #frameIndex = 0;
   #frameTotal = 1;
   #frames = [];
+  #dimensions = [16, 16];
   #filmstripEl = null;
   #numberEl = null;
   #totalEl = null;
@@ -127,6 +129,15 @@ class FrameNav extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
+  }
+
+  get dimensions() {
+    return this.#dimensions;
+  }
+
+  set dimensions({ width, height }) {
+    this.#dimensions = [width, height];
+    this.#renderFilmstrip();
   }
 
   get frames() {
@@ -193,6 +204,7 @@ class FrameNav extends HTMLElement {
 
   #renderFilmstrip() {
     if (!this.#filmstripEl) return;
+    const [width, height] = this.#dimensions;
     this.#filmstripEl.replaceChildren();
     for (let i = 0; i < this.#frames.length; i++) {
       const frame = this.#frames[i];
@@ -201,7 +213,9 @@ class FrameNav extends HTMLElement {
       });
       cell.dataset.index = String(i);
       const thumb = document.createElement("sprite-thumbnail");
-      thumb.spriteData = frame ?? null;
+      thumb.spriteData = frame
+        ? { ...frame, width, height }
+        : { width, height, pixels: [] };
       cell.appendChild(thumb);
       cell.addEventListener("click", () => {
         this.dispatchEvent(
